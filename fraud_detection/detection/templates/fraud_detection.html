@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fraud Detection</title>
+</head>
+<body>
+    <h1>Detektimi i Mashtrimeve në Transaksionet Financiare</h1>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Ngarko dhe Analizo</button>
+        <a href="{% url 'export_to_csv' %}" class="btn btn-primary">Eksporto në CSV</a>
+
+    </form>
+    
+
+    {% if result %}
+        <h2>Anomalitë e Gjetura:</h2>
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Id e Transaksionit</th>
+                    <th>Shuma</th>
+                    <th>Kohë</th>
+                    <th>Vendndodhje</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for transaction in result %}
+                    <tr>
+                        <td>{{ transaction.transaction_id }}</td>
+                        <td>{{ transaction.amount }}</td>
+                        <td>{{ transaction.time }}</td>
+                        <td>{{ transaction.location }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Pa anomalira të gjetura.</p>
+    {% endif %}
+</body>
+</html>
