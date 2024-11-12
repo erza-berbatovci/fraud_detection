@@ -1,45 +1,73 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Fraud Detection</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fraud Detection Dashboard</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
 <body>
-    <h1>Detektimi i Mashtrimeve në Transaksionet Financiare</h1>
-    <form method="post" enctype="multipart/form-data">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">Ngarko dhe Analizo</button>
-        <a href="{% url 'export_to_csv' %}" class="btn btn-primary">Eksporto në CSV</a>
-        <a href="{% url 'export_to_excel' %}" class="btn btn-primary">Eksporto në Excel</a>
+    <div class="container mt-4">
+        <h1 class="text-center mb-4">Fraud Detection Dashboard</h1>
 
+        <!-- File Upload Form -->
+        <form method="post" enctype="multipart/form-data" class="mb-3">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="file">Upload Transaction Data:</label>
+                <input type="file" name="file" class="form-control-file" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Upload and Analyze</button>
+        </form>
 
-    </form>
-    
+        <!-- Export and Graph Buttons -->
+        <div class="mb-3">
+            <a href="{% url 'export_to_csv' %}" class="btn btn-secondary">Export to CSV</a>
+            <a href="{% url 'export_to_excel' %}" class="btn btn-secondary">Export to Excel</a>
+            <a href="{% url 'plot_transaction_amounts' %}" class="btn btn-info">Show Graph</a>
+        </div>
 
-    {% if result %}
-        <h2>Anomalitë e Gjetura:</h2>
-        <table border="1">
-            <thead>
-                <tr>
-                    <th>Id e Transaksionit</th>
-                    <th>Shuma</th>
-                    <th>Kohë</th>
-                    <th>Vendndodhje</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for transaction in result %}
+        <!-- Display Detected Anomalies -->
+        {% if result %}
+            <h2>Detected Anomalies</h2>
+            <table class="table table-bordered">
+                <thead>
                     <tr>
-                        <td>{{ transaction.transaction_id }}</td>
-                        <td>{{ transaction.amount }}</td>
-                        <td>{{ transaction.time }}</td>
-                        <td>{{ transaction.location }}</td>
+                        <th>Transaction ID</th>
+                        <th>Anomalous Columns</th>
                     </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p>Pa anomalira të gjetura.</p>
-    {% endif %}
+                </thead>
+                <tbody>
+                    {% for anomaly in result %}
+                        <tr>
+                            <td>{{ anomaly.transaction_id }}</td>
+                            <td>
+                                {% if anomaly.anomalous_columns %}
+                                    <ul>
+                                        {% for column in anomaly.anomalous_columns %}
+                                            <li>{{ column }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    None
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No anomalies detected.</p>
+        {% endif %}
+
+        <!-- Display Graph -->
+        {% if graph_url %}
+            <h2>Transaction Amount Distribution</h2>
+            <img src="data:image/png;base64,{{ graph_url }}" alt="Transaction Amount Distribution" class="img-fluid">
+        {% endif %}
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

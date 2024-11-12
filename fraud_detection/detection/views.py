@@ -4,148 +4,166 @@ import pandas as pd
 from sklearn.ensemble import IsolationForest
 import joblib
 import os
-from sklearn.preprocessing import LabelEncoder
-from .models import FraudTransaction  # Importimi i modelit për DB
-import csv
 from django.http import HttpResponse
 from openpyxl import Workbook
 
-# Funksioni që trajton ngarkimin dhe analizën
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+from io import BytesIO
+import base64
+
+
 def fraud_detection_view(request):
     result = None
-    model = None
-    anomaly_ids = []  # Lista e ID-ve të transaksioneve anomali
-
-    # Vendos path për modelin e ruajtur
+    graph_url = None
     model_path = os.path.join('fraud_model.pkl')
 
-    # Kontrollo nëse modeli është i ruajtur në disk dhe ngarko atë
-    if os.path.exists(model_path):
-        model = joblib.load(model_path)  # Ngarko modelin e ruajtur
-    else:
-        # Trajnon dhe ruan modelin vetëm një herë
-        if request.method == 'POST' and request.FILES.get('file'):
-            file = request.FILES['file']
-
-            # Kontrollo nëse file është në formatin e pranuar
-            if not file.name.endswith('.csv'):
-                result = 'Ju lutem ngarkoni një skedar CSV.'
-                return render(request, 'fraud_detection.html', {'form': TransactionForm(), 'result': result})
-
-            # Kontrollo nëse skedari ka të dhëna
-            try:
-                # Lexo skedarin CSV
-                df = pd.read_csv(file)
-
-                if df.empty:
-                    result = 'Skedari është i zbrazët.'
-                    return render(request, 'fraud_detection.html', {'form': TransactionForm(), 'result': result})
-
-                # Sigurohu që të dhënat kanë kolonat e nevojshme
-                if 'amount' not in df.columns or 'time' not in df.columns or 'location' not in df.columns:
-                    result = 'Kolonat e duhura mungojnë në skedar.'
-                    return render(request, 'fraud_detection.html', {'form': TransactionForm(), 'result': result})
-
-                # Konverto kolonën 'time' në datetime dhe pastaj në format numerik (epoch time)
-                df['time'] = pd.to_datetime(df['time'])
-                df['time'] = df['time'].apply(lambda x: x.timestamp())  # Konverto në sekonda që nga 1970-01-01
-
-                # Konverto kolonën 'location' nga string në numra
-                label_encoder = LabelEncoder()
-                df['location'] = label_encoder.fit_transform(df['location'])  # Konverto 'NY', 'LA', etj. në numra
-
-                # Trajno modelin dhe ruaj nëse nuk ekziston
-                model = IsolationForest(n_estimators=100, contamination=0.1)
-                model.fit(df[['amount', 'time', 'location']])
-
-                # Ruaj modelin në disk për përdorim të mëvonshëm
-                joblib.dump(model, model_path)
-
-            except Exception as e:
-                result = f'Ka ndodhur një gabim gjatë ngarkimit të skedarit: {e}'
-                return render(request, 'fraud_detection.html', {'form': TransactionForm(), 'result': result})
-
-    # Përdor modelin për të identifikuar anomalitë
+    # If there is a file uploaded via POST
     if request.method == 'POST' and request.FILES.get('file'):
         file = request.FILES['file']
-        
-        # Ngarko të dhënat nga skedari i ngarkuar (CSV)
         try:
+            # Load CSV file into DataFrame
             df = pd.read_csv(file)
+            print("CSV data loaded:")
+            print(df.head())
 
-            # Sigurohu që të dhënat kanë kolonat e nevojshme
-            if 'amount' not in df.columns or 'time' not in df.columns or 'location' not in df.columns:
-                result = 'Kolonat e duhura mungojnë në skedar.'
-                return render(request, 'fraud_detection.html', {'form': TransactionForm(), 'result': result})
+            # Select numeric columns for anomaly detection
+            numeric_df = df.select_dtypes(include='number')
+            if numeric_df.empty:
+                raise ValueError("The CSV file must contain at least one numeric column for anomaly detection.")
 
-            # Konverto kolonën 'time' në datetime dhe pastaj në format numerik (epoch time)
-            df['time'] = pd.to_datetime(df['time'])
-            df['time'] = df['time'].apply(lambda x: x.timestamp())  # Konverto në sekonda që nga 1970-01-01
+            print("Using the following columns for anomaly detection:", numeric_df.columns.tolist())
 
-            # Konverto kolonën 'location' nga string në numra
-            label_encoder = LabelEncoder()
-            df['location'] = label_encoder.fit_transform(df['location'])  # Konverto 'NY', 'LA', etj. në numra
+            # Check if model exists and is compatible with the new columns
+            if os.path.exists(model_path):
+                model = joblib.load(model_path)
+                # Check if column names match
+                if set(model.feature_names_in_) != set(numeric_df.columns):
+                    print("Column mismatch detected. Retraining the model with new columns.")
+                    model = None  # Reset model to force retraining
+            else:
+                model = None
 
-            # Përdor modelin për të identifikuar anomalitë
-            df['anomaly'] = model.predict(df[['amount', 'time', 'location']])
+            # If model is None, train a new one
+            if model is None:
+                contamination_rate = min(0.05, 1.0 / len(numeric_df))
+                model = IsolationForest(n_estimators=100, contamination=contamination_rate, random_state=42)
+                model.fit(numeric_df)
+                joblib.dump(model, model_path)
+                print(f"Model trained with contamination rate: {contamination_rate} and saved.")
+            else:
+                print("Using loaded model...")
 
-            # Gjej transaksionet që janë anomali (të etiketuar me -1)
-            anomalies = df[df['anomaly'] == -1]  # Merr të gjitha rreshtat që janë anomali
+            # Perform anomaly detection
+            df['anomaly'] = model.predict(numeric_df)
+            print("Data with anomaly labels:")
+            print(df['anomaly'].value_counts())  # Count of anomaly labels to verify detection
 
-            print("Anomalies found:", anomalies)  # Printo anomalitë për debugging
+            # Identify anomalous columns for each row flagged as an anomaly
+            anomalies = []
+            for _, row in df[df['anomaly'] == -1].iterrows():
+                row_anomalies = {'transaction_id': row.get('transaction_id', 'N/A'), 'anomalous_columns': []}
 
-            # Ruaj anomalitë në bazën e të dhënave
-            for index, row in anomalies.iterrows():
-                # Kontrollo nëse 'transaction_id' ekziston në bazën e të dhënave
-                if not FraudTransaction.objects.filter(transaction_id=row['transaction_id']).exists():
-                    FraudTransaction.objects.create(
-                        transaction_id=row['transaction_id'],
-                        amount=row['amount'],
-                        time=row['time'],
-                        location=row['location']
-                    )
-                else:
-                    print(f"Transaction ID {row['transaction_id']} already exists.")  # Debugging
+                # Check column-wise contributions to anomaly
+                for column in numeric_df.columns:
+                    without_column = numeric_df.drop(columns=[column])
+                    temp_model = IsolationForest(n_estimators=100, contamination=0.05, random_state=42)
+                    temp_model.fit(without_column)
+                    score_with_column = model.decision_function([row[numeric_df.columns]])
+                    score_without_column = temp_model.decision_function([row[without_column.columns]])
+                    
+                    # If excluding the column significantly decreases the anomaly score, mark it as anomalous
+                    if score_without_column > score_with_column:
+                        row_anomalies['anomalous_columns'].append(column)
 
-            # Dërgo të dhënat e plota për anomalitë në template
-            result = anomalies[['transaction_id', 'amount', 'time', 'location']].to_dict(orient='records')
+                anomalies.append(row_anomalies)
 
-            print("Result data to be rendered:", result)  # Printo rezultatin që do të dërgohet në template
+            result = anomalies
+            print("Anomalies detected:", result)
+
+            # Generate histogram for the first numeric column in the dataset and highlight anomalies
+            first_numeric_col = numeric_df.columns[0]
+            fig, ax = plt.subplots()
+            normal_data = df[df['anomaly'] != -1][first_numeric_col]
+            anomalous_data = df[df['anomaly'] == -1][first_numeric_col]
+
+            # Plot normal data in blue and anomalies in red
+            ax.hist(normal_data, bins=10, color='skyblue', edgecolor='black', label="Normal Data", alpha=0.7)
+            ax.hist(anomalous_data, bins=10, color='red', edgecolor='black', label="Anomalies", alpha=0.7)
+            ax.set_title(f'Distribution of {first_numeric_col}')
+            ax.set_xlabel(first_numeric_col)
+            ax.set_ylabel('Transaction Count')
+            ax.legend()
+
+            # Save and encode the plot image for HTML display
+            buffer = BytesIO()
+            plt.savefig(buffer, format='png')
+            buffer.seek(0)
+            graph_url = base64.b64encode(buffer.getvalue()).decode('utf-8')
+            plt.close(fig)
 
         except Exception as e:
-            result = f'Ka ndodhur një gabim gjatë ngarkimit të skedarit: {e}'
-            return render(request, 'fraud_detection.html', {'form': TransactionForm(), 'result': result})
+            result = f'Error processing file: {e}'
+            print(result)
 
-    return render(request, 'fraud_detection.html', {'form': TransactionForm(), 'result': result})
+    # Render template with results and graph
+    return render(request, 'fraud_detection.html', {
+        'form': TransactionForm(),
+        'result': result,
+        'graph_url': graph_url,
+    })
+
+# Additional export and plotting functions go here if needed
+
 def export_to_csv(request):
-    # Merrni anomalitë nga databaza
     anomalies = FraudTransaction.objects.all()
-
-    # Krijoni një përgjigje me përmbajtje CSV
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="anomalies.csv"'
-
     writer = csv.writer(response)
     writer.writerow(['Transaction ID', 'Amount', 'Time', 'Location'])
-
     for anomaly in anomalies:
         writer.writerow([anomaly.transaction_id, anomaly.amount, anomaly.time, anomaly.location])
-
     return response
+
 def export_to_excel(request):
     anomalies = FraudTransaction.objects.all()
-
-    # Krijoni një workbook të ri
     wb = Workbook()
     ws = wb.active
     ws.title = "Anomalies"
     ws.append(['Transaction ID', 'Amount', 'Time', 'Location'])
-
     for anomaly in anomalies:
         ws.append([anomaly.transaction_id, anomaly.amount, anomaly.time, anomaly.location])
-
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = 'attachment; filename="anomalies.xlsx"'
-
     wb.save(response)
     return response
+
+def plot_transaction_amounts(request):
+    # Fetch all anomalies from the database
+    anomalies = FraudTransaction.objects.all()
+    amounts = [anomaly.amount for anomaly in anomalies]
+
+    all_data = pd.DataFrame(amounts, columns=['amount'])
+    all_data['is_anomaly'] = all_data['amount'].apply(lambda x: x in amounts)
+
+    normal_data = all_data[all_data['is_anomaly'] == False]['amount']
+    anomalous_data = all_data[all_data['is_anomaly'] == True]['amount']
+
+    fig, ax = plt.subplots()
+    ax.hist(normal_data, bins=10, color='skyblue', edgecolor='black', label="Normal Data")
+    ax.hist(anomalous_data, bins=10, color='red', edgecolor='black', label="Anomalies")
+
+    ax.set_title('Transaction Amount Distribution')
+    ax.set_xlabel('Amount')
+    ax.set_ylabel('Transaction Count')
+    ax.legend()
+
+    buffer = BytesIO()
+    plt.savefig(buffer, format='png')
+    buffer.seek(0)
+    graph_url = base64.b64encode(buffer.getvalue()).decode('utf-8')
+    plt.close(fig)
+
+    return render(request, 'plot_graph.html', {'graph_url': graph_url})
