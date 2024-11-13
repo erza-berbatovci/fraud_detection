@@ -6,90 +6,103 @@ import joblib
 import os
 from django.http import HttpResponse
 from openpyxl import Workbook
-
-import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-
 from io import BytesIO
 import base64
+import matplotlib
+matplotlib.use('Agg')  # Set backend to Agg for compatibility with Django
+import matplotlib.pyplot as plt
+
+
+# Define the model path
+model_path = os.path.join('fraud_model.pkl')
+
+def analyze_dataset(df):
+    analysis = {
+        'data_shape': df.shape,
+        'null_values': df.isnull().values.any()
+    }
+
+    # Look for common fraud-related columns
+    if 'Class' in df.columns:
+        target_column = 'Class'
+    elif 'isFraud' in df.columns:
+        target_column = 'isFraud'
+    else:
+        target_column = None
+
+    if target_column:
+        unique_values = df[target_column].unique()
+        analysis['unique_target_values'] = unique_values
+        total_transactions = len(df)
+        fraud_transactions = df[target_column].value_counts().get(1, 0)
+        normal_transactions = df[target_column].value_counts().get(0, 0)
+
+        analysis['percentage_non_fraudulent'] = f"{(normal_transactions / total_transactions) * 100:.3f}%" if total_transactions else "N/A"
+        analysis['percentage_fraudulent'] = f"{(fraud_transactions / total_transactions) * 100:.3f}%" if total_transactions else "N/A"
+        analysis['total_fraud_transactions'] = fraud_transactions
+        analysis['total_normal_transactions'] = normal_transactions
+    else:
+        analysis['unique_target_values'] = "N/A"
+        analysis['percentage_non_fraudulent'] = "N/A"
+        analysis['percentage_fraudulent'] = "N/A"
+        analysis['total_fraud_transactions'] = "N/A"
+        analysis['total_normal_transactions'] = "N/A"
+
+    return analysis
 
 
 def fraud_detection_view(request):
     result = None
     graph_url = None
-    model_path = os.path.join('fraud_model.pkl')
+    dataset_analysis = None
 
-    # If there is a file uploaded via POST
     if request.method == 'POST' and request.FILES.get('file'):
         file = request.FILES['file']
         try:
             # Load CSV file into DataFrame
             df = pd.read_csv(file)
-            print("CSV data loaded:")
+            print("CSV data loaded successfully.")
             print(df.head())
 
-            # Select numeric columns for anomaly detection
+            # Analyze the dataset
+            dataset_analysis = analyze_dataset(df)
+            
+            # Automatically select numeric columns
             numeric_df = df.select_dtypes(include='number')
             if numeric_df.empty:
-                raise ValueError("The CSV file must contain at least one numeric column for anomaly detection.")
+                raise ValueError("The dataset must contain numeric columns for anomaly detection.")
 
             print("Using the following columns for anomaly detection:", numeric_df.columns.tolist())
 
-            # Check if model exists and is compatible with the new columns
+            # Load or train the model
             if os.path.exists(model_path):
                 model = joblib.load(model_path)
-                # Check if column names match
+                # Retrain model if columns do not match
                 if set(model.feature_names_in_) != set(numeric_df.columns):
                     print("Column mismatch detected. Retraining the model with new columns.")
-                    model = None  # Reset model to force retraining
+                    model = IsolationForest(n_estimators=100, contamination=0.02, random_state=42)
+                    model.fit(numeric_df)
+                    joblib.dump(model, model_path)
             else:
-                model = None
-
-            # If model is None, train a new one
-            if model is None:
-                contamination_rate = min(0.05, 1.0 / len(numeric_df))
-                model = IsolationForest(n_estimators=100, contamination=contamination_rate, random_state=42)
+                print("Training a new model...")
+                model = IsolationForest(n_estimators=100, contamination=0.02, random_state=42)
                 model.fit(numeric_df)
                 joblib.dump(model, model_path)
-                print(f"Model trained with contamination rate: {contamination_rate} and saved.")
-            else:
-                print("Using loaded model...")
+                print("Model trained and saved.")
 
             # Perform anomaly detection
             df['anomaly'] = model.predict(numeric_df)
-            print("Data with anomaly labels:")
-            print(df['anomaly'].value_counts())  # Count of anomaly labels to verify detection
+            anomalies = df[df['anomaly'] == -1]
+            result = anomalies.to_dict(orient='records')
+            print(f"Number of anomalies detected: {len(result)}")
 
-            # Identify anomalous columns for each row flagged as an anomaly
-            anomalies = []
-            for _, row in df[df['anomaly'] == -1].iterrows():
-                row_anomalies = {'transaction_id': row.get('transaction_id', 'N/A'), 'anomalous_columns': []}
-
-                # Check column-wise contributions to anomaly
-                for column in numeric_df.columns:
-                    without_column = numeric_df.drop(columns=[column])
-                    temp_model = IsolationForest(n_estimators=100, contamination=0.05, random_state=42)
-                    temp_model.fit(without_column)
-                    score_with_column = model.decision_function([row[numeric_df.columns]])
-                    score_without_column = temp_model.decision_function([row[without_column.columns]])
-                    
-                    # If excluding the column significantly decreases the anomaly score, mark it as anomalous
-                    if score_without_column > score_with_column:
-                        row_anomalies['anomalous_columns'].append(column)
-
-                anomalies.append(row_anomalies)
-
-            result = anomalies
-            print("Anomalies detected:", result)
-
-            # Generate histogram for the first numeric column in the dataset and highlight anomalies
+            # Generate a histogram for the first numeric column
             first_numeric_col = numeric_df.columns[0]
             fig, ax = plt.subplots()
             normal_data = df[df['anomaly'] != -1][first_numeric_col]
-            anomalous_data = df[df['anomaly'] == -1][first_numeric_col]
+            anomalous_data = anomalies[first_numeric_col]
 
-            # Plot normal data in blue and anomalies in red
             ax.hist(normal_data, bins=10, color='skyblue', edgecolor='black', label="Normal Data", alpha=0.7)
             ax.hist(anomalous_data, bins=10, color='red', edgecolor='black', label="Anomalies", alpha=0.7)
             ax.set_title(f'Distribution of {first_numeric_col}')
@@ -97,7 +110,7 @@ def fraud_detection_view(request):
             ax.set_ylabel('Transaction Count')
             ax.legend()
 
-            # Save and encode the plot image for HTML display
+            # Convert plot to base64 for HTML display
             buffer = BytesIO()
             plt.savefig(buffer, format='png')
             buffer.seek(0)
@@ -105,17 +118,15 @@ def fraud_detection_view(request):
             plt.close(fig)
 
         except Exception as e:
-            result = f'Error processing file: {e}'
+            result = f"An error occurred while processing the file: {e}"
             print(result)
 
-    # Render template with results and graph
     return render(request, 'fraud_detection.html', {
         'form': TransactionForm(),
         'result': result,
         'graph_url': graph_url,
+        'dataset_analysis': dataset_analysis,
     })
-
-# Additional export and plotting functions go here if needed
 
 def export_to_csv(request):
     anomalies = FraudTransaction.objects.all()
@@ -141,7 +152,6 @@ def export_to_excel(request):
     return response
 
 def plot_transaction_amounts(request):
-    # Fetch all anomalies from the database
     anomalies = FraudTransaction.objects.all()
     amounts = [anomaly.amount for anomaly in anomalies]
 

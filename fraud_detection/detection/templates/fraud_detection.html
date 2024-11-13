@@ -27,37 +27,47 @@
             <a href="{% url 'plot_transaction_amounts' %}" class="btn btn-info">Show Graph</a>
         </div>
 
-        <!-- Display Detected Anomalies -->
-        {% if result %}
-            <h2>Detected Anomalies</h2>
-            <table class="table table-bordered">
-                <thead>
+        <!-- Display Dataset Analysis -->
+        {% if dataset_analysis %}
+            <h2 class="text-center mt-4">Analysis of the Dataset</h2>
+            <table class="table table-bordered table-striped">
+                <thead class="bg-success text-white">
                     <tr>
-                        <th>Transaction ID</th>
-                        <th>Anomalous Columns</th>
+                        <th>Algorithm Name</th>
+                        <th>Isolation Forest</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for anomaly in result %}
-                        <tr>
-                            <td>{{ anomaly.transaction_id }}</td>
-                            <td>
-                                {% if anomaly.anomalous_columns %}
-                                    <ul>
-                                        {% for column in anomaly.anomalous_columns %}
-                                            <li>{{ column }}</li>
-                                        {% endfor %}
-                                    </ul>
-                                {% else %}
-                                    None
-                                {% endif %}
-                            </td>
-                        </tr>
-                    {% endfor %}
+                    <tr>
+                        <td>Data Shape</td>
+                        <td>{{ dataset_analysis.data_shape }}</td>
+                    </tr>
+                    <tr>
+                        <td>Unique Target Values</td>
+                        <td>{{ dataset_analysis.unique_target_values }}</td>
+                    </tr>
+                    <tr>
+                        <td>Percentage of Non-Fraudulent Transactions</td>
+                        <td>{{ dataset_analysis.percentage_non_fraudulent }}</td>
+                    </tr>
+                    <tr>
+                        <td>Percentage of Fraudulent Transactions</td>
+                        <td>{{ dataset_analysis.percentage_fraudulent }}</td>
+                    </tr>
+                    <tr>
+                        <td>Null Values</td>
+                        <td>{{ dataset_analysis.null_values }}</td>
+                    </tr>
+                    <tr>
+                        <td>Total Fraudulent Transactions in Dataset</td>
+                        <td>{{ dataset_analysis.total_fraud_transactions }}</td>
+                    </tr>
+                    <tr>
+                        <td>Total Normal Transactions in Dataset</td>
+                        <td>{{ dataset_analysis.total_normal_transactions }}</td>
+                    </tr>
                 </tbody>
             </table>
-        {% else %}
-            <p>No anomalies detected.</p>
         {% endif %}
 
         <!-- Display Graph -->
