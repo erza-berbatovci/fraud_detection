@@ -4,6 +4,7 @@ import pandas as pd
 from sklearn.ensemble import IsolationForest, RandomForestClassifier
 import joblib
 import os
+import csv
 from django.http import HttpResponse
 from openpyxl import Workbook
 import matplotlib.pyplot as plt
@@ -145,28 +146,28 @@ def fraud_detection_view(request):
         'accuracy': accuracy,
         'anomalies_count': anomalies_count,
     })
-def export_to_csv(request):
-    anomalies = FraudTransaction.objects.all()
+def export_anomalies_to_csv(request):
+    # Retrieve anomalies from session
+    anomalies = request.session.get('anomalies_result', [])
+
+    # If there are no anomalies, return an empty CSV file
+    if not anomalies:
+        return HttpResponse("No anomalies to export.", content_type="text/plain")
+
+    # Create a CSV response
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = 'attachment; filename="anomalies.csv"'
+
+    # Write CSV headers
     writer = csv.writer(response)
-    writer.writerow(['Transaction ID', 'Amount', 'Time', 'Location'])
+    writer.writerow(anomalies[0].keys())  # Write headers based on keys of the first anomaly
+
+    # Write anomaly data rows
     for anomaly in anomalies:
-        writer.writerow([anomaly.transaction_id, anomaly.amount, anomaly.time, anomaly.location])
+        writer.writerow(anomaly.values())
+
     return response
 
-def export_to_excel(request):
-    anomalies = FraudTransaction.objects.all()
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Anomalies"
-    ws.append(['Transaction ID', 'Amount', 'Time', 'Location'])
-    for anomaly in anomalies:
-        ws.append([anomaly.transaction_id, anomaly.amount, anomaly.time, anomaly.location])
-    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = 'attachment; filename="anomalies.xlsx"'
-    wb.save(response)
-    return response
 
 def plot_transaction_amounts(request):
     anomalies = FraudTransaction.objects.all()

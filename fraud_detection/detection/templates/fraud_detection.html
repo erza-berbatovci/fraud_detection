@@ -55,10 +55,10 @@
 
         <!-- Export and Graph Buttons -->
         <div class="mb-3">
-            <a href="{% url 'export_to_csv' %}" class="btn btn-secondary">Export to CSV</a>
-            <a href="{% url 'export_to_excel' %}" class="btn btn-secondary">Export to Excel</a>
-            <a href="{% url 'plot_transaction_amounts' %}" class="btn btn-info">Show Graph</a>
+           
+            <a href="{% url 'export_anomalies_to_csv' %}" class="btn btn-warning">Export Anomalies to CSV</a>
         </div>
+        
 
         <!-- Display Dataset Analysis -->
         {% if dataset_analysis %}
