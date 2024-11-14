@@ -53,15 +53,16 @@ def analyze_dataset(df):
         analysis['total_fraud_transactions'] = "N/A"
         analysis['total_normal_transactions'] = "N/A"
 
-    return analysis
+    return analysis, target_column
 
 def fraud_detection_view(request):
     result = None
     graph_url = None
+    scatter_url = None
     dataset_analysis = None
     classification_report_str = None
     accuracy = None
-    anomalies_count = 0  # Variable to store the count of anomalies detected
+    anomalies_count = 0
 
     if request.method == 'POST' and request.FILES.get('file'):
         file = request.FILES['file']
@@ -69,8 +70,8 @@ def fraud_detection_view(request):
             # Load CSV file into DataFrame
             df = pd.read_csv(file)
 
-            # Analyze the dataset and prepare numeric features for Isolation Forest
-            dataset_analysis = analyze_dataset(df)
+            # Analyze dataset and detect target column
+            dataset_analysis, target_column = analyze_dataset(df)
             numeric_df = df.select_dtypes(include='number').drop(columns=['TransactionID', 'customer_zip_code_prefix'], errors='ignore')
 
             if numeric_df.empty:
@@ -80,24 +81,56 @@ def fraud_detection_view(request):
             if os.path.exists(isolation_model_path):
                 isolation_model = joblib.load(isolation_model_path)
                 if set(isolation_model.feature_names_in_) != set(numeric_df.columns):
-                    isolation_model = IsolationForest(n_estimators=100, contamination=0.02, random_state=42)
+                    isolation_model = IsolationForest(n_estimators=100, contamination=0.002, random_state=42)
                     isolation_model.fit(numeric_df)
                     joblib.dump(isolation_model, isolation_model_path)
             else:
-                isolation_model = IsolationForest(n_estimators=100, contamination=0.02, random_state=42)
+                isolation_model = IsolationForest(n_estimators=100, contamination=0.002, random_state=42)
                 isolation_model.fit(numeric_df)
                 joblib.dump(isolation_model, isolation_model_path)
 
             # Perform anomaly detection with Isolation Forest
             df['anomaly'] = isolation_model.predict(numeric_df)
-            anomalies = df[df['anomaly'] == -1]  # Filter only the anomalies
-            anomalies_count = len(anomalies)  # Count the number of anomalies detected
-
-            # Save anomalies for export or later use
+            anomalies = df[df['anomaly'] == -1]
+            anomalies_count = len(anomalies)
             result = anomalies.to_dict(orient='records')
             request.session['anomalies_result'] = result
 
-            # Optional: Generate a graph (code omitted for brevity)
+            # Generate scatter plot
+            feature_x = 'Time'
+            feature_y = 'Amount'
+            fig, ax = plt.subplots()
+            normal_data = df[df['anomaly'] != -1]
+            anomalous_data = df[df['anomaly'] == -1]
+            ax.scatter(normal_data[feature_x], normal_data[feature_y], color='blue', label='Normal', alpha=0.6)
+            ax.scatter(anomalous_data[feature_x], anomalous_data[feature_y], color='red', label='Anomaly', alpha=0.6)
+            ax.set_xlabel(feature_x)
+            ax.set_ylabel(feature_y)
+            ax.set_title(f'Scatter Plot of {feature_y} vs {feature_x} (Anomalies Highlighted)')
+            ax.legend()
+
+            buffer = BytesIO()
+            plt.savefig(buffer, format='png')
+            buffer.seek(0)
+            scatter_url = base64.b64encode(buffer.getvalue()).decode('utf-8')
+            plt.close(fig)
+
+            # Train and evaluate Random Forest if a target column is detected
+            if target_column:
+                X = numeric_df
+                y = df[target_column]
+
+                # Train-test split for supervised learning
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+                # Train Random Forest model
+                random_forest_model = RandomForestClassifier(n_estimators=100, random_state=42)
+                random_forest_model.fit(X_train, y_train)
+                
+                # Make predictions and calculate metrics
+                y_pred = random_forest_model.predict(X_test)
+                classification_report_str = classification_report(y_test, y_pred)
+                accuracy = accuracy_score(y_test, y_pred)
 
         except Exception as e:
             result = f"An error occurred while processing the file: {e}"
@@ -106,12 +139,12 @@ def fraud_detection_view(request):
         'form': TransactionForm(),
         'result': result,
         'graph_url': graph_url,
+        'scatter_url': scatter_url,
         'dataset_analysis': dataset_analysis,
         'classification_report': classification_report_str,
         'accuracy': accuracy,
-        'anomalies_count': anomalies_count,  # Pass anomalies count to template
+        'anomalies_count': anomalies_count,
     })
-
 def export_to_csv(request):
     anomalies = FraudTransaction.objects.all()
     response = HttpResponse(content_type='text/csv')
