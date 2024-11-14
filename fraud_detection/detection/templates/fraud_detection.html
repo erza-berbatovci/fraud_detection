@@ -24,56 +24,43 @@
         <div class="mb-3">
             <a href="{% url 'export_to_csv' %}" class="btn btn-secondary">Export to CSV</a>
             <a href="{% url 'export_to_excel' %}" class="btn btn-secondary">Export to Excel</a>
-            <a href="{% url 'plot_transaction_amounts' %}" class="btn btn-info">Show Graph</a>
         </div>
 
         <!-- Display Dataset Analysis -->
         {% if dataset_analysis %}
-            <h2 class="text-center mt-4">Analysis of the Dataset</h2>
-            <table class="table table-bordered table-striped">
-                <thead class="bg-success text-white">
-                    <tr>
-                        <th>Algorithm Name</th>
-                        <th>Isolation Forest</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Data Shape</td>
-                        <td>{{ dataset_analysis.data_shape }}</td>
-                    </tr>
-                    <tr>
-                        <td>Unique Target Values</td>
-                        <td>{{ dataset_analysis.unique_target_values }}</td>
-                    </tr>
-                    <tr>
-                        <td>Percentage of Non-Fraudulent Transactions</td>
-                        <td>{{ dataset_analysis.percentage_non_fraudulent }}</td>
-                    </tr>
-                    <tr>
-                        <td>Percentage of Fraudulent Transactions</td>
-                        <td>{{ dataset_analysis.percentage_fraudulent }}</td>
-                    </tr>
-                    <tr>
-                        <td>Null Values</td>
-                        <td>{{ dataset_analysis.null_values }}</td>
-                    </tr>
-                    <tr>
-                        <td>Total Fraudulent Transactions in Dataset</td>
-                        <td>{{ dataset_analysis.total_fraud_transactions }}</td>
-                    </tr>
-                    <tr>
-                        <td>Total Normal Transactions in Dataset</td>
-                        <td>{{ dataset_analysis.total_normal_transactions }}</td>
-                    </tr>
-                </tbody>
-            </table>
+        <h2 class="text-center mt-4">Analysis of the Dataset</h2>
+        <table class="table table-bordered table-striped">
+            <thead class="bg-success text-white">
+                <tr>
+                    <th>Metric</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>Data Shape</td><td>{{ dataset_analysis.data_shape }}</td></tr>
+                <tr><td>Unique Target Values</td><td>{{ dataset_analysis.unique_target_values }}</td></tr>
+                <tr><td>Percentage of Non-Fraudulent Transactions</td><td>{{ dataset_analysis.percentage_non_fraudulent }}</td></tr>
+                <tr><td>Percentage of Fraudulent Transactions</td><td>{{ dataset_analysis.percentage_fraudulent }}</td></tr>
+                <tr><td>Null Values</td><td>{{ dataset_analysis.null_values }}</td></tr>
+                <tr><td>Total Fraudulent Transactions in Dataset</td><td>{{ dataset_analysis.total_fraud_transactions }}</td></tr>
+                <tr><td>Total Normal Transactions in Dataset</td><td>{{ dataset_analysis.total_normal_transactions }}</td></tr>
+                <!-- Add row for Anomalies detected by Isolation Forest -->
+                <tr><td>Anomalies Detected by Isolation Forest</td><td>{{ anomalies_count }}</td></tr>
+            </tbody>
+        </table>
+        {% endif %}
+
+        <!-- Display Classification Report -->
+        {% if classification_report %}
+        <h3>Random Forest Classification Report</h3>
+        <pre>{{ classification_report }}</pre>
+        <p><strong>Accuracy:</strong> {{ accuracy }}</p>
         {% endif %}
 
         <!-- Display Graph -->
         {% if graph_url %}
-            <h2>Transaction Amount Distribution</h2>
-            <img src="data:image/png;base64,{{ graph_url }}" alt="Transaction Amount Distribution" class="img-fluid">
+        <h2 class="text-center mt-4">Transaction Amount Distribution</h2>
+        <img src="data:image/png;base64,{{ graph_url }}" alt="Transaction Amount Distribution" class="img-fluid">
         {% endif %}
     </div>
 

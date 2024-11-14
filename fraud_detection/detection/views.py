@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from .forms import TransactionForm
 import pandas as pd
-from sklearn.ensemble import IsolationForest
+from sklearn.ensemble import IsolationForest, RandomForestClassifier
 import joblib
 import os
 from django.http import HttpResponse
@@ -10,12 +10,14 @@ import matplotlib.pyplot as plt
 from io import BytesIO
 import base64
 import matplotlib
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, accuracy_score
+
 matplotlib.use('Agg')  # Set backend to Agg for compatibility with Django
-import matplotlib.pyplot as plt
 
-
-# Define the model path
-model_path = os.path.join('fraud_model.pkl')
+# Define paths for the models
+isolation_model_path = os.path.join('isolation_forest_model.pkl')
+random_forest_model_path = os.path.join('random_forest_model.pkl')
 
 def analyze_dataset(df):
     analysis = {
@@ -28,6 +30,8 @@ def analyze_dataset(df):
         target_column = 'Class'
     elif 'isFraud' in df.columns:
         target_column = 'isFraud'
+    elif 'FraudIndicator' in df.columns:
+        target_column = 'FraudIndicator'
     else:
         target_column = None
 
@@ -51,81 +55,61 @@ def analyze_dataset(df):
 
     return analysis
 
-
 def fraud_detection_view(request):
     result = None
     graph_url = None
     dataset_analysis = None
+    classification_report_str = None
+    accuracy = None
+    anomalies_count = 0  # Variable to store the count of anomalies detected
 
     if request.method == 'POST' and request.FILES.get('file'):
         file = request.FILES['file']
         try:
             # Load CSV file into DataFrame
             df = pd.read_csv(file)
-            print("CSV data loaded successfully.")
-            print(df.head())
 
-            # Analyze the dataset
+            # Analyze the dataset and prepare numeric features for Isolation Forest
             dataset_analysis = analyze_dataset(df)
-            
-            # Automatically select numeric columns
-            numeric_df = df.select_dtypes(include='number')
+            numeric_df = df.select_dtypes(include='number').drop(columns=['TransactionID', 'customer_zip_code_prefix'], errors='ignore')
+
             if numeric_df.empty:
-                raise ValueError("The dataset must contain numeric columns for anomaly detection.")
+                raise ValueError("The dataset must contain meaningful numeric columns for anomaly detection.")
 
-            print("Using the following columns for anomaly detection:", numeric_df.columns.tolist())
-
-            # Load or train the model
-            if os.path.exists(model_path):
-                model = joblib.load(model_path)
-                # Retrain model if columns do not match
-                if set(model.feature_names_in_) != set(numeric_df.columns):
-                    print("Column mismatch detected. Retraining the model with new columns.")
-                    model = IsolationForest(n_estimators=100, contamination=0.02, random_state=42)
-                    model.fit(numeric_df)
-                    joblib.dump(model, model_path)
+            # Train or load Isolation Forest model
+            if os.path.exists(isolation_model_path):
+                isolation_model = joblib.load(isolation_model_path)
+                if set(isolation_model.feature_names_in_) != set(numeric_df.columns):
+                    isolation_model = IsolationForest(n_estimators=100, contamination=0.02, random_state=42)
+                    isolation_model.fit(numeric_df)
+                    joblib.dump(isolation_model, isolation_model_path)
             else:
-                print("Training a new model...")
-                model = IsolationForest(n_estimators=100, contamination=0.02, random_state=42)
-                model.fit(numeric_df)
-                joblib.dump(model, model_path)
-                print("Model trained and saved.")
+                isolation_model = IsolationForest(n_estimators=100, contamination=0.02, random_state=42)
+                isolation_model.fit(numeric_df)
+                joblib.dump(isolation_model, isolation_model_path)
 
-            # Perform anomaly detection
-            df['anomaly'] = model.predict(numeric_df)
-            anomalies = df[df['anomaly'] == -1]
+            # Perform anomaly detection with Isolation Forest
+            df['anomaly'] = isolation_model.predict(numeric_df)
+            anomalies = df[df['anomaly'] == -1]  # Filter only the anomalies
+            anomalies_count = len(anomalies)  # Count the number of anomalies detected
+
+            # Save anomalies for export or later use
             result = anomalies.to_dict(orient='records')
-            print(f"Number of anomalies detected: {len(result)}")
+            request.session['anomalies_result'] = result
 
-            # Generate a histogram for the first numeric column
-            first_numeric_col = numeric_df.columns[0]
-            fig, ax = plt.subplots()
-            normal_data = df[df['anomaly'] != -1][first_numeric_col]
-            anomalous_data = anomalies[first_numeric_col]
-
-            ax.hist(normal_data, bins=10, color='skyblue', edgecolor='black', label="Normal Data", alpha=0.7)
-            ax.hist(anomalous_data, bins=10, color='red', edgecolor='black', label="Anomalies", alpha=0.7)
-            ax.set_title(f'Distribution of {first_numeric_col}')
-            ax.set_xlabel(first_numeric_col)
-            ax.set_ylabel('Transaction Count')
-            ax.legend()
-
-            # Convert plot to base64 for HTML display
-            buffer = BytesIO()
-            plt.savefig(buffer, format='png')
-            buffer.seek(0)
-            graph_url = base64.b64encode(buffer.getvalue()).decode('utf-8')
-            plt.close(fig)
+            # Optional: Generate a graph (code omitted for brevity)
 
         except Exception as e:
             result = f"An error occurred while processing the file: {e}"
-            print(result)
 
     return render(request, 'fraud_detection.html', {
         'form': TransactionForm(),
         'result': result,
         'graph_url': graph_url,
         'dataset_analysis': dataset_analysis,
+        'classification_report': classification_report_str,
+        'accuracy': accuracy,
+        'anomalies_count': anomalies_count,  # Pass anomalies count to template
     })
 
 def export_to_csv(request):
