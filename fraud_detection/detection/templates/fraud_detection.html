@@ -1,22 +1,23 @@
 {% extends 'base.html' %}
 
-{% block title %}Fraud Detection{% endblock %}
-
 {% block content %}
-<div class="container">
-    <h1 class="text-center mt-4">Fraud Detection</h1>
+<div class="container mt-4">
+    <h1 class="text-center">Fraud Detection</h1>
+    <p class="text-center">Upload your dataset for anomaly detection and analysis.</p>
 
-    <form method="post" enctype="multipart/form-data" class="my-4">
+    <!-- Upload Form -->
+    <form method="post" enctype="multipart/form-data" class="mb-4">
         {% csrf_token %}
         <div class="form-group">
-            <label for="file">Upload Dataset (CSV format):</label>
+            <label for="file">Upload Dataset (CSV):</label>
             <input type="file" name="file" class="form-control-file" required>
         </div>
-        <button type="submit" class="btn btn-primary">Upload and Analyze</button>
+        <button type="submit" class="btn btn-success">Analyze</button>
     </form>
 
+    <!-- Display Analysis Results -->
     {% if dataset_analysis %}
-    <h2 class="text-center mt-4">Dataset Analysis</h2>
+    <h2>Dataset Analysis</h2>
     <table class="table table-bordered">
         <thead>
             <tr>
@@ -25,19 +26,33 @@
             </tr>
         </thead>
         <tbody>
-            {% for key, value in dataset_analysis.items %}
-            <tr>
-                <td>{{ key }}</td>
-                <td>{{ value }}</td>
-            </tr>
-            {% endfor %}
+            <tr><td>Data Shape</td><td>{{ dataset_analysis.data_shape }}</td></tr>
+            <tr><td>Null Values</td><td>{{ dataset_analysis.null_values }}</td></tr>
+            <tr><td>Unique Target Values</td><td>{{ dataset_analysis.unique_target_values }}</td></tr>
+            <tr><td>Percentage of Non-Fraudulent Transactions</td><td>{{ dataset_analysis.percentage_non_fraudulent }}</td></tr>
+            <tr><td>Percentage of Fraudulent Transactions</td><td>{{ dataset_analysis.percentage_fraudulent }}</td></tr>
+            <tr><td>Total Fraudulent Transactions</td><td>{{ dataset_analysis.total_fraud_transactions }}</td></tr>
+            <tr><td>Total Normal Transactions</td><td>{{ dataset_analysis.total_normal_transactions }}</td></tr>
         </tbody>
     </table>
     {% endif %}
 
+    <!-- Display Scatter Plot -->
     {% if scatter_url %}
-    <h2 class="text-center mt-4">Scatter Plot</h2>
+    <h2>Scatter Plot</h2>
     <img src="data:image/png;base64,{{ scatter_url }}" alt="Scatter Plot" class="img-fluid">
+    {% endif %}
+
+    <!-- Admin-Only Section -->
+    {% if is_admin_user %}
+    <h2>Additional Analysis (Admin Only)</h2>
+    {% if classification_report %}
+    <h3>Random Forest Classification Report</h3>
+    <pre>{{ classification_report }}</pre>
+    {% endif %}
+    {% if accuracy %}
+    <p><strong>Random Forest Accuracy:</strong> {{ accuracy|floatformat:2 }}</p>
+    {% endif %}
     {% endif %}
 </div>
 {% endblock %}

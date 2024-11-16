@@ -138,9 +138,14 @@ def analyze_dataset(df):
 
 @login_required
 def fraud_detection_view(request):
+    """Handle fraud detection and anomaly analysis."""
     result = None
     scatter_url = None
     dataset_analysis = None
+    classification_report_str = None
+    accuracy = None
+    anomalies_count = 0
+    is_admin_user = request.user.is_superuser  # Check if the user is an admin
 
     if request.method == 'POST' and request.FILES.get('file'):
         file = request.FILES['file']
@@ -149,15 +154,11 @@ def fraud_detection_view(request):
             df = pd.read_csv(file)
 
             # Analyze the dataset
-            dataset_analysis = {
-                'Data Shape': df.shape,
-                'Null Values': df.isnull().values.any()
-            }
-            numeric_df = df.select_dtypes(include='number')
+            dataset_analysis, target_column = analyze_dataset(df)
+            numeric_df = df.select_dtypes(include='number').copy()
 
-            # Ensure numeric data exists
             if numeric_df.empty:
-                raise ValueError("The dataset must contain numeric columns for analysis.")
+                raise ValueError("The dataset must contain numeric columns for anomaly detection.")
 
             # Load or train the Isolation Forest model
             retrain_model = False
@@ -165,29 +166,31 @@ def fraud_detection_view(request):
                 isolation_model = joblib.load(ISOLATION_MODEL_PATH)
                 print("Isolation Forest model loaded successfully.")
 
-                # Check if features match; retrain if not
+                # Check if the features match; retrain if they don't
                 if set(isolation_model.feature_names_in_) != set(numeric_df.columns):
-                    print("Feature mismatch detected. Retraining model.")
+                    print("Feature mismatch detected. Retraining Isolation Forest.")
                     retrain_model = True
             else:
+                print("No existing model found. Training a new Isolation Forest model.")
                 retrain_model = True
 
-            # Train the model if needed
+            # Train the model if necessary
             if retrain_model:
                 isolation_model = IsolationForest(n_estimators=100, contamination=0.002, random_state=42)
                 isolation_model.fit(numeric_df)
                 joblib.dump(isolation_model, ISOLATION_MODEL_PATH)
                 print("Isolation Forest model trained and saved.")
+            else:
+                print("Using pre-trained Isolation Forest model.")
 
-            # Perform anomaly detection
+            # Anomaly detection
             df['anomaly'] = isolation_model.predict(numeric_df)
             anomalies = df[df['anomaly'] == -1]
-            dataset_analysis.update({
-                'Total Transactions': len(df),
-                'Anomalies Detected': len(anomalies),
-            })
+            anomalies_count = len(anomalies)
+            result = anomalies.to_dict(orient='records')
+            request.session['anomalies_result'] = result
 
-            # Create scatter plot
+            # Scatter plot generation
             feature_x = 'Time' if 'Time' in numeric_df.columns else numeric_df.columns[0]
             feature_y = 'Amount' if 'Amount' in numeric_df.columns else numeric_df.columns[1]
 
@@ -198,7 +201,7 @@ def fraud_detection_view(request):
             ax.scatter(anomalous_data[feature_x], anomalous_data[feature_y], color='red', label='Anomaly', alpha=0.6)
             ax.set_xlabel(feature_x)
             ax.set_ylabel(feature_y)
-            ax.set_title(f'Scatter Plot: {feature_y} vs {feature_x}')
+            ax.set_title(f'Scatter Plot: {feature_y} vs {feature_x} (Anomalies Highlighted)')
             ax.legend()
 
             buffer = BytesIO()
@@ -207,15 +210,32 @@ def fraud_detection_view(request):
             scatter_url = base64.b64encode(buffer.getvalue()).decode('utf-8')
             plt.close(fig)
 
+            # Random Forest model (if target column exists) for admins only
+            if target_column and is_admin_user:
+                X = numeric_df
+                y = df[target_column]
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
+
+                rf_model = RandomForestClassifier(n_estimators=100, random_state=42)
+                rf_model.fit(X_train, y_train)
+
+                y_pred = rf_model.predict(X_test)
+                classification_report_str = classification_report(y_test, y_pred)
+                accuracy = accuracy_score(y_test, y_pred)
+
         except Exception as e:
-            result = f"Error processing file: {e}"
+            result = f"Error during processing: {e}"
 
     return render(request, 'fraud_detection.html', {
-        'dataset_analysis': dataset_analysis,
-        'scatter_url': scatter_url,
+        'form': TransactionForm(),
         'result': result,
+        'scatter_url': scatter_url,
+        'dataset_analysis': dataset_analysis,
+        'classification_report': classification_report_str if is_admin_user else None,
+        'accuracy': accuracy if is_admin_user else None,
+        'anomalies_count': anomalies_count,
+        'is_admin_user': is_admin_user,  # Pass admin status to the template
     })
-
 @login_required
 @user_passes_test(is_admin)
 

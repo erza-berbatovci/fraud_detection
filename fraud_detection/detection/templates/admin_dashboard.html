@@ -1,47 +1,53 @@
 {% extends 'base.html' %}
 
-{% block title %}Admin Dashboard{% endblock %}
-
 {% block content %}
 <div class="container mt-4">
-    <h2>Uploaded Datasets</h2>
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Uploaded By</th>
-                <th>Uploaded At</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for dataset in datasets %}
-            <tr>
-                <td>{{ dataset.name }}</td>
-                <td>{{ dataset.uploaded_by.username }}</td>
-                <td>{{ dataset.uploaded_at }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <h1 class="text-center">Admin Dashboard</h1>
+    <p class="text-center">Manage datasets and monitor user activities.</p>
 
-    <h2>User Activity Log</h2>
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                <th>User</th>
-                <th>Action</th>
-                <th>Timestamp</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for log in user_activity %}
-            <tr>
-                <td>{{ log.user.username }}</td>
-                <td>{{ log.action }}</td>
-                <td>{{ log.timestamp }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <!-- Datasets Section -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            Datasets
+        </div>
+        <div class="card-body">
+            {% if datasets %}
+                <ul class="list-group">
+                    {% for dataset in datasets %}
+                        <li class="list-group-item">
+                            {{ dataset.name }} - Uploaded by {{ dataset.uploaded_by.username }} on {{ dataset.uploaded_at|date:"F d, Y, h:i a" }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No datasets available.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- User Activity Log Section -->
+    <div class="card mb-4">
+        <div class="card-header bg-secondary text-white">
+            User Activity Log
+        </div>
+        <div class="card-body">
+            {% if user_activity %}
+                <ul class="list-group">
+                    {% for log in user_activity %}
+                        <li class="list-group-item">
+                            {{ log.user.username }} - {{ log.action }} on {{ log.timestamp|date:"F d, Y, h:i a" }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No user activities logged.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Button to Navigate to Fraud Detection -->
+    <div class="mt-4 text-center">
+        <a href="{% url 'fraud_detection' %}" class="btn btn-primary">Analyze Fraud</a>
+    </div>
 </div>
 {% endblock %}
