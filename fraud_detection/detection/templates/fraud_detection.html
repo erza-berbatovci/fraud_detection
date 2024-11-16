@@ -1,125 +1,43 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fraud Detection Dashboard</title>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
-    <style>
-        /* Custom styling */
-        body {
-            background-color: #f8f9fa;
-        }
-        .header, .footer {
-            background-color: #343a40;
-            color: white;
-            padding: 10px;
-        }
-        .header h1, .footer p {
-            margin: 0;
-        }
-        .container {
-            margin-top: 20px;
-        }
-        .table th {
-            background-color: #28a745;
-            color: white;
-            text-align: center;
-        }
-        .table td {
-            text-align: center;
-        }
-        .btn-primary, .btn-secondary {
-            margin-right: 5px;
-        }
-    </style>
-</head>
-<body>
+{% extends 'base.html' %}
 
-    <!-- Header -->
-    <div class="header text-center">
-        <h1>Fraud Detection Dashboard</h1>
-        <p>Analyze transaction data for potential fraud detection</p>
-    </div>
+{% block title %}Fraud Detection{% endblock %}
 
-    <div class="container mt-4">
-        <!-- File Upload Form -->
-        <form method="post" enctype="multipart/form-data" class="mb-3">
-            {% csrf_token %}
-            <div class="form-group">
-                <label for="file">Upload Transaction Data:</label>
-                <input type="file" name="file" class="form-control-file" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Upload and Analyze</button>
-        </form>
+{% block content %}
+<div class="container">
+    <h1 class="text-center mt-4">Fraud Detection</h1>
 
-        <!-- Export and Graph Buttons -->
-        <div class="mb-3">
-           
-            <a href="{% url 'export_anomalies_to_csv' %}" class="btn btn-warning">Export Anomalies to CSV</a>
+    <form method="post" enctype="multipart/form-data" class="my-4">
+        {% csrf_token %}
+        <div class="form-group">
+            <label for="file">Upload Dataset (CSV format):</label>
+            <input type="file" name="file" class="form-control-file" required>
         </div>
-        
+        <button type="submit" class="btn btn-primary">Upload and Analyze</button>
+    </form>
 
-        <!-- Display Dataset Analysis -->
-        {% if dataset_analysis %}
-        <h2 class="text-center mt-4">Analysis of the Dataset</h2>
-        <table class="table table-bordered table-striped">
-            <thead>
-                <tr>
-                    <th>Metric</th>
-                    <th>Value</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr><td>Data Shape</td><td>{{ dataset_analysis.data_shape }}</td></tr>
-                <tr><td>Unique Target Values</td><td>{{ dataset_analysis.unique_target_values }}</td></tr>
-                <tr><td>Percentage of Non-Fraudulent Transactions</td><td>{{ dataset_analysis.percentage_non_fraudulent }}</td></tr>
-                <tr><td>Percentage of Fraudulent Transactions</td><td>{{ dataset_analysis.percentage_fraudulent }}</td></tr>
-                <tr><td>Null Values</td><td>{{ dataset_analysis.null_values }}</td></tr>
-                <tr><td>Total Fraudulent Transactions in Dataset</td><td>{{ dataset_analysis.total_fraud_transactions }}</td></tr>
-                <tr><td>Total Normal Transactions in Dataset</td><td>{{ dataset_analysis.total_normal_transactions }}</td></tr>
-                <tr><td>Anomalies Detected by Isolation Forest</td><td>{{ anomalies_count }}</td></tr>
-                
-                <!-- Add Random Forest Model Accuracy and Classification Report if available -->
-                {% if accuracy %}
-                <tr><td>Random Forest Model Accuracy</td><td>{{ accuracy }}</td></tr>
-                {% endif %}
-        
-                {% if classification_report %}
-                <tr>
-                    <td>Random Forest Classification Report</td>
-                    <td><pre>{{ classification_report }}</pre></td>
-                </tr>
-                {% endif %}
-            </tbody>
-        </table>
-        
-        {% endif %}
+    {% if dataset_analysis %}
+    <h2 class="text-center mt-4">Dataset Analysis</h2>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Metric</th>
+                <th>Value</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for key, value in dataset_analysis.items %}
+            <tr>
+                <td>{{ key }}</td>
+                <td>{{ value }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
 
-        <!-- Display Transaction Amount Distribution Graph -->
-        {% if graph_url %}
-        <h2 class="text-center mt-4">Transaction Amount Distribution</h2>
-        <img src="data:image/png;base64,{{ graph_url }}" alt="Transaction Amount Distribution" class="img-fluid mb-4">
-        {% endif %}
-
-        <!-- Display Scatter Plot for Anomalies -->
-        {% if scatter_url %}
-        <h2 class="text-center mt-4">Scatter Plot of Anomalies vs Normal Transactions</h2>
-        <img src="data:image/png;base64,{{ scatter_url }}" alt="Scatter Plot of Anomalies" class="img-fluid mb-4">
-        {% endif %}
-    </div>
-
-    <!-- Footer -->
-    <div class="footer text-center mt-4">
-        <p>&copy; 2024 Fraud Detection Dashboard. All rights reserved.</p>
-    </div>
-
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        $(document).ready(function(){
-            $('[data-toggle="tooltip"]').tooltip();
-        });
-    </script>
-</body>
-</html>
+    {% if scatter_url %}
+    <h2 class="text-center mt-4">Scatter Plot</h2>
+    <img src="data:image/png;base64,{{ scatter_url }}" alt="Scatter Plot" class="img-fluid">
+    {% endif %}
+</div>
+{% endblock %}

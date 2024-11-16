@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block title %}User Dashboard{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="text-center">User Dashboard</h1>
+    <p class="text-center">View your datasets and analysis results.</p>
+
+    <!-- File Upload Form -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">Upload Dataset</div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="dataset">Upload your dataset (CSV format):</label>
+                    <input type="file" name="file" class="form-control" id="dataset" required>
+                </div>
+                <button type="submit" class="btn btn-success">Upload and Analyze</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Display User Datasets -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">Your Datasets</div>
+        <div class="card-body">
+            {% if datasets %}
+                <ul class="list-group">
+                    {% for dataset in datasets %}
+                        <li class="list-group-item">
+                            {{ dataset.name }} - Uploaded on {{ dataset.uploaded_at }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No datasets available.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Analysis Results -->
+    <div class="card">
+        <div class="card-header bg-success text-white">Analysis Results</div>
+        <div class="card-body">
+            {% if analysis_results %}
+                <ul class="list-group">
+                    {% for result in analysis_results %}
+                        <li class="list-group-item">
+                            {{ result }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No analysis results available.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
