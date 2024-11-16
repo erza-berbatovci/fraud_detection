@@ -17,6 +17,65 @@ from sklearn.metrics import classification_report, accuracy_score
 matplotlib.use('Agg')  # Set backend to Agg for compatibility with Django
 
 # Define paths for the models
+
+isolation_model_path = os.path.join('isolation_forest_model.pkl')
+
+def analyze_dataset(df):
+    analysis = {
+        'data_shape': df.shape,
+        'null_values': df.isnull().values.any()
+    }
+
+    # Look for common fraud-related columns
+    if 'Class' in df.columns:
+        target_column = 'Class'
+    elif 'isFraud' in df.columns:
+        target_column = 'isFraud'
+    elif 'FraudIndicator' in df.columns:
+        target_column = 'FraudIndicator'
+    else:
+        target_column = None
+
+    if target_column:
+        unique_values = df[target_column].unique()
+        analysis['unique_target_values'] = unique_values
+        total_transactions = len(df)
+        fraud_transactions = df[target_column].value_counts().get(1, 0)
+        normal_transactions = df[target_column].value_counts().get(0, 0)
+
+        analysis['percentage_non_fraudulent'] = f"{(normal_transactions / total_transactions) * 100:.3f}%" if total_transactions else "N/A"
+        analysis['percentage_fraudulent'] = f"{(fraud_transactions / total_transactions) * 100:.3f}%" if total_transactions else "N/A"
+        analysis['total_fraud_transactions'] = fraud_transactions
+        analysis['total_normal_transactions'] = normal_transactions
+    else:
+        analysis['unique_target_values'] = "N/A"
+        analysis['percentage_non_fraudulent'] = "N/A"
+        analysis['percentage_fraudulent'] = "N/A"
+        analysis['total_fraud_transactions'] = "N/A"
+        analysis['total_normal_transactions'] = "N/A"
+
+    return analysis, target_column
+
+
+from django.shortcuts import render
+from .forms import TransactionForm
+import pandas as pd
+from sklearn.ensemble import IsolationForest, RandomForestClassifier
+import joblib
+import os
+import csv
+from django.http import HttpResponse
+from openpyxl import Workbook
+import matplotlib.pyplot as plt
+from io import BytesIO
+import base64
+import matplotlib
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, accuracy_score
+
+matplotlib.use('Agg')  # Set backend to Agg for compatibility with Django
+
+# Define paths for the models
 isolation_model_path = os.path.join('isolation_forest_model.pkl')
 random_forest_model_path = os.path.join('random_forest_model.pkl')
 
@@ -79,16 +138,27 @@ def fraud_detection_view(request):
                 raise ValueError("The dataset must contain meaningful numeric columns for anomaly detection.")
 
             # Train or load Isolation Forest model
+            retrain_model = False
             if os.path.exists(isolation_model_path):
                 isolation_model = joblib.load(isolation_model_path)
+                print("Isolation Forest model loaded successfully.")
+
+                # Check if the features match; retrain if they don’t
                 if set(isolation_model.feature_names_in_) != set(numeric_df.columns):
-                    isolation_model = IsolationForest(n_estimators=100, contamination=0.002, random_state=42)
-                    isolation_model.fit(numeric_df)
-                    joblib.dump(isolation_model, isolation_model_path)
+                    print("Feature mismatch detected. Retraining the Isolation Forest model with new columns.")
+                    retrain_model = True
             else:
-                isolation_model = IsolationForest(n_estimators=100, contamination=0.002, random_state=42)
+                print("No existing Isolation Forest model found. Training a new model.")
+                retrain_model = True
+
+            # Retrain the model only if necessary
+            if retrain_model:
+                isolation_model = IsolationForest(n_estimators=100, contamination=0.002, random_state=42)  # Set random_state for reproducibility
                 isolation_model.fit(numeric_df)
                 joblib.dump(isolation_model, isolation_model_path)
+                print("Isolation Forest model trained and saved.")
+            else:
+                print("Using the preloaded Isolation Forest model without retraining.")
 
             # Perform anomaly detection with Isolation Forest
             df['anomaly'] = isolation_model.predict(numeric_df)
@@ -97,9 +167,11 @@ def fraud_detection_view(request):
             result = anomalies.to_dict(orient='records')
             request.session['anomalies_result'] = result
 
+            # Ensure correct features are used in the scatter plot
+            feature_x = 'Time' if 'Time' in numeric_df.columns else numeric_df.columns[0]
+            feature_y = 'Amount' if 'Amount' in numeric_df.columns else numeric_df.columns[1]
+
             # Generate scatter plot
-            feature_x = 'Time'
-            feature_y = 'Amount'
             fig, ax = plt.subplots()
             normal_data = df[df['anomaly'] != -1]
             anomalous_data = df[df['anomaly'] == -1]
@@ -146,6 +218,8 @@ def fraud_detection_view(request):
         'accuracy': accuracy,
         'anomalies_count': anomalies_count,
     })
+
+
 def export_anomalies_to_csv(request):
     # Retrieve anomalies from session
     anomalies = request.session.get('anomalies_result', [])
