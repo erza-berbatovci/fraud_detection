@@ -13,6 +13,8 @@ urlpatterns = [
     path('redirect/', views.home_redirect, name='redirect'),  # Redirect users after login
     path('admin_dashboard/', views.admin_dashboard_view, name='admin_dashboard'),  # Admin dashboard
     path('user_dashboard/', views.user_dashboard_view, name='user_dashboard'),  # User dashboard
+    path('delete_dataset/<int:dataset_id>/', views.delete_dataset, name='delete_dataset'),
+
 ] 
 
 # Serve media files during development

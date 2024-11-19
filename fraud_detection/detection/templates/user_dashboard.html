@@ -3,12 +3,12 @@
 {% block content %}
 <div class="container mt-4">
     <h1 class="text-center">User Dashboard</h1>
-    <p class="text-center">View your datasets and analysis results.</p>
+    <p class="text-center">View your datasets and perform fraud analysis.</p>
 
     <!-- Upload Dataset Section -->
     <div class="card mb-4">
         <div class="card-header bg-primary text-white">
-            Upload Dataset
+            <h4 class="mb-0">Upload Dataset</h4>
         </div>
         <div class="card-body">
             <form method="post" enctype="multipart/form-data">
@@ -17,52 +17,73 @@
                     <label for="file">Upload your dataset (CSV format):</label>
                     <input type="file" name="file" class="form-control-file" required>
                 </div>
-                <button type="submit" class="btn btn-success">Upload and Analyze</button>
+                <button type="submit" class="btn btn-success">Upload</button>
             </form>
         </div>
     </div>
 
     <!-- Your Datasets Section -->
-    <div class="card mb-4">
-        <div class="card-header bg-primary text-white">
-            Your Datasets
-        </div>
-        <div class="card-body">
-            {% if datasets %}
-                <ul class="list-group">
-                    {% for dataset in datasets %}
-                        <li class="list-group-item">
-                            {{ dataset.name }} - Uploaded on {{ dataset.uploaded_at|date:"F d, Y, h:i a" }}
-                        </li>
-                    {% endfor %}
-                </ul>
-            {% else %}
-                <p>No datasets available.</p>
-            {% endif %}
-        </div>
+    <!-- Updated Your Datasets Section -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h4 class="mb-0">Your Datasets</h4>
     </div>
+    <div class="card-body">
+        {% if datasets %}
+            <ul class="list-group">
+                {% for dataset in datasets %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ dataset.name }} - Uploaded on {{ dataset.uploaded_at|date:"M d, Y, h:i a" }}
+                        <div>
+                            <!-- Analyze Dataset Button -->
+                            <a href="{% url 'fraud_detection' %}?dataset_id={{ dataset.id }}" 
+                               class="btn btn-info btn-sm">Analyze</a>
+                            <!-- Delete Dataset Button -->
+                            <form method="post" action="{% url 'delete_dataset' dataset.id %}" class="d-inline">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                            </form>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No datasets available. Please upload a dataset to analyze.</p>
+        {% endif %}
+    </div>
+</div>
+
 
     <!-- Analysis Results Section -->
     <div class="card mb-4">
         <div class="card-header bg-success text-white">
-            Analysis Results
+            <h4 class="mb-0">Analysis Results</h4>
         </div>
         <div class="card-body">
             {% if analysis_results %}
-                <ul class="list-group">
-                    {% for result in analysis_results %}
-                        <li class="list-group-item">{{ result }}</li>
-                    {% endfor %}
-                </ul>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Data Shape</td><td>{{ analysis_results.data_shape }}</td></tr>
+                        <tr><td>Null Values</td><td>{{ analysis_results.null_values }}</td></tr>
+                        <tr><td>Unique Target Values</td><td>{{ analysis_results.unique_target_values }}</td></tr>
+                        <tr><td>Percentage Non-Fraudulent</td><td>{{ analysis_results.percentage_non_fraudulent }}</td></tr>
+                        <tr><td>Percentage Fraudulent</td><td>{{ analysis_results.percentage_fraudulent }}</td></tr>
+                        <tr><td>Total Fraudulent Transactions</td><td>{{ analysis_results.total_fraud_transactions }}</td></tr>
+                        <tr><td>Total Normal Transactions</td><td>{{ analysis_results.total_normal_transactions }}</td></tr>
+                    </tbody>
+                </table>
+                <h4>Scatter Plot</h4>
+                <img src="data:image/png;base64,{{ scatter_url }}" class="img-fluid" alt="Scatter Plot">
             {% else %}
-                <p>No analysis results available.</p>
+                <p>No analysis results available. Please select a dataset to analyze.</p>
             {% endif %}
         </div>
-    </div>
-
-    <!-- Button to Navigate to Fraud Detection -->
-    <div class="mt-4 text-center">
-        <a href="{% url 'fraud_detection' %}" class="btn btn-primary">Analyze Fraud</a>
     </div>
 </div>
 {% endblock %}

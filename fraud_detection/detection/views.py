@@ -14,6 +14,8 @@ import base64
 from .models import Dataset, UserActivityLog  # Import custom models
 from .forms import TransactionForm
 from django.contrib.auth.forms import UserCreationForm
+from django.shortcuts import get_object_or_404
+from django.contrib import messages
 
 # Set backend for matplotlib
 plt.switch_backend('Agg')
@@ -62,39 +64,67 @@ def admin_dashboard_view(request):
 
 @login_required
 def user_dashboard_view(request):
-    """User dashboard view to handle dataset upload and display analysis."""
-    datasets = Dataset.objects.filter(uploaded_by=request.user)  # Fetch datasets uploaded by the user
-    analysis_results = []  # Placeholder for analysis results
+    """User dashboard view to handle dataset upload, deletion, and analysis."""
+    datasets = Dataset.objects.filter(uploaded_by=request.user)  # Fetch user-specific datasets
+    analysis_results = None
+    scatter_url = None
 
-    if request.method == 'POST' and request.FILES.get('file'):
-        file = request.FILES['file']
-        try:
-            # Save the uploaded file to the Dataset model
+    if request.method == 'POST':
+        if 'file' in request.FILES:  # File upload logic
+            file = request.FILES['file']
             dataset = Dataset.objects.create(
                 name=file.name,
                 file=file,
                 uploaded_by=request.user
             )
             dataset.save()
+            messages.success(request, f"Dataset '{file.name}' uploaded successfully.")
+        elif 'dataset_id' in request.POST:  # Fraud analysis logic
+            dataset_id = request.POST['dataset_id']
+            dataset = get_object_or_404(Dataset, id=dataset_id, uploaded_by=request.user)
+            try:
+                # Load dataset and perform analysis
+                df = pd.read_csv(dataset.file.path)
+                analysis_results, _ = analyze_dataset(df)
 
-            # Log the user action
-            UserActivityLog.objects.create(
-                user=request.user,
-                action=f"Uploaded dataset: {file.name}"
-            )
+                # Scatter plot generation
+                feature_x = 'Time' if 'Time' in df.columns else df.columns[0]
+                feature_y = 'Amount' if 'Amount' in df.columns else df.columns[1]
 
-            # Analyze the uploaded file (optional: add your analysis logic here)
-            df = pd.read_csv(dataset.file.path)  # Load the uploaded CSV file
-            analysis, _ = analyze_dataset(df)
-            analysis_results.append(analysis)
+                fig, ax = plt.subplots()
+                ax.scatter(df[feature_x], df[feature_y], color='blue', alpha=0.6)
+                ax.set_xlabel(feature_x)
+                ax.set_ylabel(feature_y)
+                ax.set_title(f"Scatter Plot: {feature_y} vs {feature_x}")
 
-        except Exception as e:
-            analysis_results.append(f"Error analyzing the dataset: {e}")
+                buffer = BytesIO()
+                plt.savefig(buffer, format='png')
+                buffer.seek(0)
+                scatter_url = base64.b64encode(buffer.getvalue()).decode('utf-8')
+                plt.close(fig)
+
+            except Exception as e:
+                messages.error(request, f"Error analyzing dataset: {e}")
+        elif 'delete_dataset' in request.POST:  # Dataset deletion logic
+            dataset_id = request.POST['delete_dataset']
+            dataset = get_object_or_404(Dataset, id=dataset_id, uploaded_by=request.user)
+            dataset.delete()
+            messages.success(request, f"Dataset '{dataset.name}' deleted successfully.")
 
     return render(request, 'user_dashboard.html', {
         'datasets': datasets,
         'analysis_results': analysis_results,
+        'scatter_url': scatter_url,
     })
+
+@login_required
+def delete_dataset(request, dataset_id):
+    """Delete a specific dataset."""
+    dataset = get_object_or_404(Dataset, id=dataset_id, uploaded_by=request.user)
+    dataset.delete()
+    messages.success(request, f"Dataset '{dataset.name}' deleted successfully.")
+    return redirect('user_dashboard')
+
 
 def analyze_dataset(df):
     """Analyze the dataset and extract relevant metadata."""
@@ -138,7 +168,7 @@ def analyze_dataset(df):
 
 @login_required
 def fraud_detection_view(request):
-    """Handle fraud detection and anomaly analysis."""
+    """Handle fraud detection for a specific dataset."""
     result = None
     scatter_url = None
     dataset_analysis = None
@@ -147,11 +177,23 @@ def fraud_detection_view(request):
     anomalies_count = 0
     is_admin_user = request.user.is_superuser  # Check if the user is an admin
 
-    if request.method == 'POST' and request.FILES.get('file'):
-        file = request.FILES['file']
+    # Get the dataset ID from the query parameter
+    dataset_id = request.GET.get('dataset_id')
+    dataset = None
+
+    if dataset_id:
+        # Fetch the dataset from the database
+        dataset = get_object_or_404(Dataset, id=dataset_id, uploaded_by=request.user)
+
+    if request.method == 'POST' or dataset:
         try:
-            # Load the dataset
-            df = pd.read_csv(file)
+            # Load the dataset from the file if available
+            if dataset:
+                df = pd.read_csv(dataset.file.path)
+            else:
+                # If the user uploads a new file
+                file = request.FILES['file']
+                df = pd.read_csv(file)
 
             # Analyze the dataset
             dataset_analysis, target_column = analyze_dataset(df)
@@ -236,6 +278,7 @@ def fraud_detection_view(request):
         'anomalies_count': anomalies_count,
         'is_admin_user': is_admin_user,  # Pass admin status to the template
     })
+
 @login_required
 @user_passes_test(is_admin)
 
