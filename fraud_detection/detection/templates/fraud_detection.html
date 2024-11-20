@@ -35,13 +35,21 @@
             <tr><td>Total Normal Transactions</td><td>{{ dataset_analysis.total_normal_transactions }}</td></tr>
         </tbody>
     </table>
+    <a href="{% url 'export_anomalies_csv' dataset_id=dataset_id %}" class="btn btn-primary mt-3">
+        Download Anomalies as CSV
+    </a>
+    
+    
+    
     {% endif %}
 
-    <!-- Display Scatter Plot -->
-    {% if scatter_url %}
-    <h2>Scatter Plot</h2>
-    <img src="data:image/png;base64,{{ scatter_url }}" alt="Scatter Plot" class="img-fluid">
-    {% endif %}
+    
+
+    <div>
+        <h2>Scatter Plot and Pie Chart</h2>
+        <img src="data:image/png;base64,{{ scatter_url }}" alt="Scatter Plot and Pie Chart" class="img-fluid">
+    </div>
+    
 
     <!-- Admin-Only Section -->
     {% if is_admin_user %}

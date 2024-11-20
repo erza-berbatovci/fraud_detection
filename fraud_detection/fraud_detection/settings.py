@@ -132,3 +132,4 @@ LOGIN_REDIRECT_URL = '/redirect/'  # This will call the home_redirect view after
   # Redirect to the home page after login
 LOGOUT_REDIRECT_URL = '/login/'  # Redirect to the login page after logout
 
+DEBUG = True
