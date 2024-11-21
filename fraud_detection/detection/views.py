@@ -16,6 +16,7 @@ from .forms import TransactionForm
 from django.contrib.auth.forms import UserCreationForm
 from django.shortcuts import get_object_or_404
 from django.contrib import messages
+from openpyxl import Workbook
 
 # Set backend for matplotlib
 plt.switch_backend('Agg')
@@ -316,8 +317,8 @@ def fraud_detection_view(request):
         'dataset_id': dataset_id,
     })
 
-def export_anomalies_csv(request, dataset_id):
-    """Export anomalies as a CSV file."""
+def export_anomalies_excel(request, dataset_id):
+    """Export anomalies as an Excel file."""
     dataset = get_object_or_404(Dataset, id=dataset_id)
 
     try:
@@ -337,16 +338,16 @@ def export_anomalies_csv(request, dataset_id):
         if anomalies.empty:
             return HttpResponse("No anomalies detected in the dataset.", content_type="text/plain")
 
-        # Create CSV response
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="anomalies_{dataset.name}.csv"'
+        # Create Excel response
+        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = f'attachment; filename="anomalies_{dataset.name}.xlsx"'
 
-        writer = csv.writer(response)
-        writer.writerow(anomalies.columns)  # Write the header
-        for _, row in anomalies.iterrows():
-            writer.writerow(row)
+        # Write to Excel
+        with pd.ExcelWriter(response, engine='openpyxl') as writer:
+            anomalies.to_excel(writer, index=False, sheet_name='Anomalies')
 
         return response
     except Exception as e:
         print(f"Error: {e}")  # Debug: Print the error
         return HttpResponse(f"Error exporting anomalies: {e}", content_type="text/plain")
+    
