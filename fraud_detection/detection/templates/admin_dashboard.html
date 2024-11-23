@@ -5,20 +5,56 @@
     <h1 class="text-center">Admin Dashboard</h1>
     <p class="text-center">Manage datasets and monitor user activities.</p>
 
-    <!-- Datasets Section -->
+    <!-- Dataset Upload Section -->
     <div class="card mb-4">
         <div class="card-header bg-primary text-white">
-            Datasets
+            Upload Dataset
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="file">Upload Dataset (CSV):</label>
+                    <input type="file" name="file" class="form-control-file" required>
+                </div>
+                <button type="submit" class="btn btn-success">Upload</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Datasets Section -->
+    <div class="card mb-4">
+        <div class="card-header bg-secondary text-white">
+            Available Datasets
         </div>
         <div class="card-body">
             {% if datasets %}
-                <ul class="list-group">
-                    {% for dataset in datasets %}
-                        <li class="list-group-item">
-                            {{ dataset.name }} - Uploaded by {{ dataset.uploaded_by.username }} on {{ dataset.uploaded_at|date:"F d, Y, h:i a" }}
-                        </li>
-                    {% endfor %}
-                </ul>
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Uploaded By</th>
+                            <th>Uploaded At</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dataset in datasets %}
+                        <tr>
+                            <td>{{ dataset.name }}</td>
+                            <td>{{ dataset.uploaded_by.username }}</td>
+                            <td>{{ dataset.uploaded_at|date:"F d, Y h:i A" }}</td>
+                            <td>
+                                <form method="post">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="dataset_id" value="{{ dataset.id }}">
+                                    <button type="submit" class="btn btn-primary btn-sm">Analyze</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             {% else %}
                 <p>No datasets available.</p>
             {% endif %}
@@ -27,15 +63,15 @@
 
     <!-- User Activity Log Section -->
     <div class="card mb-4">
-        <div class="card-header bg-secondary text-white">
-            User Activity Log
+        <div class="card-header bg-info text-white">
+            Recent User Activities
         </div>
         <div class="card-body">
-            {% if user_activity %}
+            {% if user_activity_logs %}
                 <ul class="list-group">
-                    {% for log in user_activity %}
+                    {% for log in user_activity_logs %}
                         <li class="list-group-item">
-                            {{ log.user.username }} - {{ log.action }} on {{ log.timestamp|date:"F d, Y, h:i a" }}
+                            {{ log.user.username }} - {{ log.action }} on {{ log.timestamp|date:"F d, Y h:i A" }}
                         </li>
                     {% endfor %}
                 </ul>
@@ -45,9 +81,30 @@
         </div>
     </div>
 
-    <!-- Button to Navigate to Fraud Detection -->
-    <div class="mt-4 text-center">
-        <a href="{% url 'fraud_detection' %}" class="btn btn-primary">Analyze Fraud</a>
+    <!-- Analysis Results -->
+    {% if scatter_url %}
+    <div>
+        <h2>Analysis Results</h2>
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for key, value in dataset_analysis.items %}
+                <tr>
+                    <td>{{ key }}</td>
+                    <td>{{ value }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h3>Scatter Plot and Pie Chart</h3>
+        <img src="data:image/png;base64,{{ scatter_url }}" alt="Scatter Plot and Pie Chart" class="img-fluid">
     </div>
+    {% endif %}
 </div>
 {% endblock %}

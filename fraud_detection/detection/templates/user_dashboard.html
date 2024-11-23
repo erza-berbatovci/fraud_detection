@@ -36,8 +36,8 @@
                         {{ dataset.name }} - Uploaded on {{ dataset.uploaded_at|date:"M d, Y, h:i a" }}
                         <div>
                             <!-- Analyze Dataset Button -->
-                            <a href="{% url 'fraud_detection' %}?dataset_id={{ dataset.id }}" 
-                               class="btn btn-info btn-sm">Analyze</a>
+                            <a href="{% url 'fraud_detection' dataset_id=dataset.id %}">Analyze</a>
+
                             <!-- Delete Dataset Button -->
                             <form method="post" action="{% url 'delete_dataset' dataset.id %}" class="d-inline">
                                 {% csrf_token %}

@@ -6,7 +6,7 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path('', views.home_view, name='home'),  # Home page
-    path('fraud_detection/', views.fraud_detection_view, name='fraud_detection'),  # Fraud detection
+    path('fraud-detection/<int:dataset_id>/', views.fraud_detection_view, name='fraud_detection'),  # Fraud detection  # Fraud detection
     path('register/', views.register_view, name='register'),  # Registration page
     path('login/', auth_views.LoginView.as_view(template_name='login.html'), name='login'),  # Login page
     path('logout/', auth_views.LogoutView.as_view(next_page='home'), name='logout'),  # Logout
