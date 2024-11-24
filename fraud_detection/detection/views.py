@@ -18,6 +18,16 @@ from django.shortcuts import get_object_or_404
 from django.contrib import messages
 from openpyxl import Workbook
 from .models import UserActivityLog
+from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.metrics import make_scorer, accuracy_score
+import numpy as np
+from sklearn.model_selection import cross_val_score
+from sklearn.metrics import make_scorer, accuracy_score
+from sklearn.model_selection import cross_val_score
+from sklearn.metrics import make_scorer
+from sklearn.ensemble import IsolationForest
+import numpy as np
+
 # Set backend for matplotlib
 plt.switch_backend('Agg')
 
@@ -318,73 +328,88 @@ def analyze_dataset(df):
     print("Analysis results:", analysis)
     return analysis, target_column
 
+
+
+
+
+# Custom scorer for unsupervised learning
+def unsupervised_scorer(estimator, X):
+    predictions = estimator.fit_predict(X)
+    anomaly_ratio = (predictions == -1).sum() / len(predictions)
+    return anomaly_ratio
+
+custom_scorer = make_scorer(unsupervised_scorer, greater_is_better=True)
+
 @login_required
 def fraud_detection_view(request, dataset_id=None):
-    """Handle fraud detection for a specific dataset."""
     scatter_url = None
     dataset_analysis = None
     anomalies_count = 0
+    cross_val_scores = None
 
-    # Ensure dataset_id is provided
     if dataset_id is None:
         messages.error(request, "No dataset specified for analysis.")
         return redirect('user_dashboard')
 
-    # Retrieve the specified dataset
     dataset = get_object_or_404(Dataset, id=dataset_id, uploaded_by=request.user)
 
     try:
-        # Load and analyze the dataset
+        # Ngarkimi i dataset-it
         df = pd.read_csv(dataset.file.path)
-
-        # Ensure dataset contains numeric columns
         numeric_df = df.select_dtypes(include='number')
+
         if numeric_df.empty:
             raise ValueError("The dataset must contain numeric columns for analysis.")
 
-        # Perform anomaly detection using Isolation Forest
-        isolation_model = IsolationForest(n_estimators=100, contamination=0.002, random_state=42)
-        isolation_model.fit(numeric_df)
-        df['anomaly'] = isolation_model.predict(numeric_df)
-        anomalies = df[df['anomaly'] == -1]
-        normal_data = df[df['anomaly'] != -1]
+        # Krijimi i modelit Isolation Forest
+        isolation_model = IsolationForest(n_estimators=100, contamination=0.01, random_state=42)
+
+        # KFold Cross-Validation
+        from sklearn.model_selection import KFold
+        kf = KFold(n_splits=5, shuffle=True, random_state=42)
+        scores = []
+
+        for train_index, test_index in kf.split(numeric_df):
+            X_train, X_test = numeric_df.iloc[train_index], numeric_df.iloc[test_index]
+            isolation_model.fit(X_train)
+            predictions = isolation_model.predict(X_test)
+            anomaly_ratio = (predictions == -1).sum() / len(predictions)
+            scores.append(anomaly_ratio)
+
+        cross_val_scores = list(scores)  # Konverto në listë për template
+
+        # Handle train-test split for visualization
+        X_train, X_test = train_test_split(numeric_df, test_size=0.2, random_state=42)
+        isolation_model.fit(X_train)
+        X_test['anomaly'] = isolation_model.predict(X_test)
+        anomalies = X_test[X_test['anomaly'] == -1]
+        normal_data = X_test[X_test['anomaly'] != -1]
+
         fraud_count = len(anomalies)
         normal_count = len(normal_data)
         anomalies_count = fraud_count
 
-        # Log the analysis action
-        UserActivityLog.objects.create(
-            user=request.user,
-            action=f"Analyzed dataset: {dataset.name}"
-        )
-
-        # Dataset analysis for the table
-        total_transactions = len(df)
+        total_transactions = len(X_test)
         dataset_analysis = {
-            'data_shape': df.shape,
-            'null_values': df.isnull().sum().to_dict(),
+            'data_shape': X_test.shape,
+            'null_values': X_test.isnull().sum().to_dict(),
             'percentage_non_fraudulent': f"{(normal_count / total_transactions) * 100:.3f}%",
             'percentage_fraudulent': f"{(fraud_count / total_transactions) * 100:.3f}%",
             'total_fraud_transactions': fraud_count,
             'total_normal_transactions': normal_count,
         }
 
-        # Scatter plot and pie chart generation
+        # Scatter plot dhe pie chart
         feature_x = 'Time' if 'Time' in numeric_df.columns else numeric_df.columns[0]
         feature_y = 'Amount' if 'Amount' in numeric_df.columns else numeric_df.columns[1]
 
-        # Create a single figure with scatter plot and pie chart
         fig, axs = plt.subplots(1, 2, figsize=(12, 6))
-
-        # Scatter Plot
         axs[0].scatter(normal_data[feature_x], normal_data[feature_y], color='blue', label='Normal', alpha=0.6)
         axs[0].scatter(anomalies[feature_x], anomalies[feature_y], color='red', label='Anomaly', alpha=0.6)
         axs[0].set_xlabel(feature_x)
         axs[0].set_ylabel(feature_y)
-        axs[0].set_title(f'Scatter Plot: {feature_y} vs {feature_x} (Anomalies Highlighted)')
         axs[0].legend()
 
-        # Pie Chart
         axs[1].pie(
             [normal_count, fraud_count],
             labels=['Normal', 'Fraudulent'],
@@ -392,33 +417,27 @@ def fraud_detection_view(request, dataset_id=None):
             startangle=90,
             colors=['blue', 'red']
         )
-        axs[1].set_title('Transaction Distribution')
-
-        # Save the combined plot as a Base64 string
         buffer = BytesIO()
         plt.tight_layout()
         plt.savefig(buffer, format='png')
-        buffer.seek(0)
         scatter_url = base64.b64encode(buffer.getvalue()).decode('utf-8')
         buffer.close()
         plt.close(fig)
 
-    except FileNotFoundError:
-        messages.error(request, "The dataset file is missing or has been deleted.")
-        return redirect('user_dashboard')
-    except ValueError as e:
-        messages.error(request, str(e))
-        return redirect('user_dashboard')
     except Exception as e:
-        messages.error(request, f"An unexpected error occurred: {e}")
+        messages.error(request, f"Error: {e}")
         return redirect('user_dashboard')
 
     return render(request, 'fraud_detection.html', {
-        'scatter_url': scatter_url,
-        'dataset_analysis': dataset_analysis,
-        'anomalies_count': anomalies_count,
-        'dataset_id': dataset_id,
-    })
+    'scatter_url': scatter_url,
+    'dataset_analysis': dataset_analysis,
+    'anomalies_count': anomalies_count,
+    'cross_val_scores': cross_val_scores,
+    'cross_val_mean': np.mean(cross_val_scores) if cross_val_scores else None,
+    'dataset_id': dataset_id,  # Kalimi i dataset_id në template
+})
+
+
 
 def export_anomalies_excel(request, dataset_id):
     """Export anomalies as an Excel file."""
@@ -436,6 +455,7 @@ def export_anomalies_excel(request, dataset_id):
 
         # Filter anomalies
         anomalies = df[df['anomaly'] == -1]
+        print("Anomalies to export:", anomalies.head())
 
         # Check if there are any anomalies
         if anomalies.empty:

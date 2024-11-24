@@ -15,6 +15,33 @@
         <button type="submit" class="btn btn-success">Analyze</button>
     </form>
 
+    <!-- Display Cross-Validation Results -->
+    {% if cross_val_scores %}
+    <h2>Cross-Validation Results</h2>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Fold</th>
+                <th>Score</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for score in cross_val_scores %}
+            <tr>
+                <td>Fold {{ forloop.counter }}</td>
+                <td>{{ score|floatformat:3 }}</td>
+            </tr>
+            {% endfor %}
+            <tr>
+                <td><strong>Average Score</strong></td>
+                <td><strong>{{ cross_val_mean|floatformat:3 }}</strong></td>
+            </tr>
+        </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">No cross-validation results to display.</p>
+    {% endif %}
+
     <!-- Display Analysis Results -->
     {% if dataset_analysis %}
     <h2>Dataset Analysis</h2>
@@ -55,6 +82,9 @@
     <a href="{% url 'export_anomalies_excel' dataset_id=dataset_id %}" class="btn btn-primary mt-3">
         Download Anomalies as Excel
     </a>
+    
+    {% else %}
+    <p class="text-muted">No dataset analysis available.</p>
     {% endif %}
 
     <!-- Scatter Plot and Pie Chart -->
@@ -63,6 +93,8 @@
         <h2>Scatter Plot and Pie Chart</h2>
         <img src="data:image/png;base64,{{ scatter_url }}" alt="Scatter Plot and Pie Chart" class="img-fluid">
     </div>
+    {% else %}
+    <p class="text-muted">No scatter plot or pie chart available.</p>
     {% endif %}
 
     <!-- Heatmap -->
@@ -71,6 +103,8 @@
         <h2>Correlation Heatmap</h2>
         <img src="data:image/png;base64,{{ heatmap_url }}" alt="Correlation Heatmap" class="img-fluid">
     </div>
+    {% else %}
+    <p class="text-muted">No heatmap available.</p>
     {% endif %}
 </div>
 {% endblock %}
