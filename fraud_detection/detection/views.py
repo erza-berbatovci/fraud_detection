@@ -437,6 +437,8 @@ def fraud_detection_view(request, dataset_id=None):
     'dataset_id': dataset_id,  # Kalimi i dataset_id në template
 })
 
+def about(request):
+    return render(request, 'about.html')
 
 
 def export_anomalies_excel(request, dataset_id):

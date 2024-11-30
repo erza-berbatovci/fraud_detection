@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About</title>
+    <style>
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+        }
+
+        h1,
+        h2 {
+            color: #2c3e50;
+            text-align: center;
+        }
+
+        p,
+        ol,
+        ul {
+            color: #34495e;
+            text-align: justify;
+        }
+
+        ol {
+            margin-left: 20px;
+        }
+
+        .navbar-buttons .btn {
+            margin-right: 10px;
+        }
+
+        .navbar-buttons .btn-primary {
+            background-color: #007bff;
+            color: white;
+            border: none;
+        }
+
+        .navbar-buttons .btn-secondary {
+            background-color: gray;
+            color: white;
+            border: none;
+        }
+
+        .navbar-buttons .btn:hover {
+            opacity: 0.9;
+            transition: 0.3s;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>About Fraud Detection</h1>
+        <p>Welcome to the Fraud Detection Application. This tool is designed to help detect fraudulent transactions
+            using advanced machine learning algorithms.</p>
+
+        <h2>Purpose of the Application</h2>
+        <p>This application uses anomaly detection techniques to identify unusual patterns in financial transactions. It
+            aims to prevent fraud by analyzing transactional data and highlighting anomalies.</p>
+
+        <h2>How It Works</h2>
+        <ol>
+            <li><strong>Data Analysis:</strong> The uploaded dataset is analyzed for missing values, class distribution,
+                and key metrics.</li>
+            <li><strong>Model Training:</strong> The Isolation Forest algorithm is used to train the model, which
+                isolates anomalies based on their unique patterns.</li>
+            <li><strong>Visualization:</strong> Results are presented through scatter plots, pie charts, and detailed
+                statistics to aid in better understanding.</li>
+        </ol>
+
+        <h2>About the Algorithms</h2>
+        <p><strong>Isolation Forest:</strong> This is an unsupervised anomaly detection method that identifies anomalies
+            by splitting the data hierarchically. Anomalies are isolated faster because they are less frequent and
+            different from normal data.</p>
+        <p><strong>Cross-Validation:</strong> A method used to evaluate the model's performance by dividing the dataset
+            into multiple folds for training and testing.</p>
+
+        <h2>About the Developer</h2>
+        <p>This application was developed by <strong>Erza</strong>, as part of a thesis focused on fraud detection using
+            AI-based algorithms. It combines data science, Django, and machine learning to deliver a user-friendly
+            experience.</p>
+    </div>
+</body>
+
+</html>
