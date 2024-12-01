@@ -440,7 +440,6 @@ def fraud_detection_view(request, dataset_id=None):
 def about(request):
     return render(request, 'about.html')
 
-
 def export_anomalies_excel(request, dataset_id):
     """Export anomalies as an Excel file."""
     dataset = get_object_or_404(Dataset, id=dataset_id)
@@ -448,31 +447,28 @@ def export_anomalies_excel(request, dataset_id):
     try:
         # Load the dataset
         df = pd.read_csv(dataset.file.path)
-        print(f"Columns in dataset: {df.columns}")  # Debug: Print the column names
-        print(df.head())  # Debug: Print the first few rows of the dataframe
 
-        # Ensure the 'anomaly' column exists
+        # Shto kolonën 'anomaly' nëse mungon
         if 'anomaly' not in df.columns:
-            return HttpResponse("No anomaly data available for export.", content_type="text/plain")
+            isolation_model = IsolationForest(n_estimators=100, contamination=0.01, random_state=42)
+            isolation_model.fit(df.select_dtypes(include='number'))
+            df['anomaly'] = isolation_model.predict(df.select_dtypes(include='number'))
+            df.to_csv(dataset.file.path, index=False)  # Ruaj dataset-in të përditësuar
 
-        # Filter anomalies
+        # Filtroni anomalitë
         anomalies = df[df['anomaly'] == -1]
-        print("Anomalies to export:", anomalies.head())
 
-        # Check if there are any anomalies
+        # Kontrolloni nëse ka të dhëna anomalie
         if anomalies.empty:
-            return HttpResponse("No anomalies detected in the dataset.", content_type="text/plain")
+            return HttpResponse("Nuk ka të dhëna anomalie për eksportim.", content_type="text/plain")
 
-        # Create Excel response
+        # Krijoni një Excel file për eksport
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         response['Content-Disposition'] = f'attachment; filename="anomalies_{dataset.name}.xlsx"'
 
-        # Write to Excel
         with pd.ExcelWriter(response, engine='openpyxl') as writer:
             anomalies.to_excel(writer, index=False, sheet_name='Anomalies')
 
         return response
     except Exception as e:
-        print(f"Error: {e}")  # Debug: Print the error
-        return HttpResponse(f"Error exporting anomalies: {e}", content_type="text/plain")
-    
+        return HttpResponse(f"Gabim gjatë eksportimit të anomalive: {e}", content_type="text/plain")
