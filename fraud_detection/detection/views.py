@@ -27,6 +27,7 @@ from sklearn.model_selection import cross_val_score
 from sklearn.metrics import make_scorer
 from sklearn.ensemble import IsolationForest
 import numpy as np
+import seaborn as sns
 
 # Set backend for matplotlib
 plt.switch_backend('Agg')

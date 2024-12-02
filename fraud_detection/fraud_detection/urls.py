@@ -16,6 +16,7 @@ urlpatterns = [
     path('delete_dataset/<int:dataset_id>/', views.delete_dataset, name='delete_dataset'),
     path('export-anomalies-excel/<int:dataset_id>/', views.export_anomalies_excel, name='export_anomalies_excel'),
     path('about/', views.about, name='about'),
+  
 
 
 ] 

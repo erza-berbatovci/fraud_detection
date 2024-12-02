@@ -1,110 +1,126 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container mt-4">
-    <h1 class="text-center">Fraud Detection</h1>
-    <p class="text-center">Upload your dataset for anomaly detection and analysis.</p>
+<div class="container mt-5">
+    <div class="text-center mb-4">
+        <h1 class="display-4 text-primary">Fraud Detection</h1>
+        <p class="lead">Upload your dataset for anomaly detection and analysis.</p>
+    </div>
 
     <!-- Upload Form -->
-    <form method="post" enctype="multipart/form-data" class="mb-4">
-        {% csrf_token %}
-        <div class="form-group">
-            <label for="file">Upload Dataset (CSV):</label>
-            <input type="file" name="file" class="form-control-file" required>
+    <div class="card shadow mb-5">
+        <div class="card-body">
+            <h5 class="card-title">Upload Dataset</h5>
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="file" class="font-weight-bold">Upload Dataset (CSV):</label>
+                    <input type="file" name="file" class="form-control-file" required>
+                </div>
+                <button type="submit" class="btn btn-success btn-block">Analyze</button>
+            </form>
         </div>
-        <button type="submit" class="btn btn-success">Analyze</button>
-    </form>
+    </div>
 
     <!-- Display Cross-Validation Results -->
     {% if cross_val_scores %}
-    <h2>Cross-Validation Results</h2>
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                <th>Fold</th>
-                <th>Score</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for score in cross_val_scores %}
-            <tr>
-                <td>Fold {{ forloop.counter }}</td>
-                <td>{{ score|floatformat:3 }}</td>
-            </tr>
-            {% endfor %}
-            <tr>
-                <td><strong>Average Score</strong></td>
-                <td><strong>{{ cross_val_mean|floatformat:3 }}</strong></td>
-            </tr>
-        </tbody>
-    </table>
+    <div class="card shadow mb-5">
+        <div class="card-body">
+            <h5 class="card-title">Cross-Validation Results</h5>
+            <table class="table table-hover">
+                <thead class="thead-light">
+                    <tr>
+                        <th>Fold</th>
+                        <th>Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for score in cross_val_scores %}
+                    <tr>
+                        <td>Fold {{ forloop.counter }}</td>
+                        <td>{{ score|floatformat:3 }}</td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="table-success">
+                        <td><strong>Average Score</strong></td>
+                        <td><strong>{{ cross_val_mean|floatformat:3 }}</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
     {% else %}
-    <p class="text-muted">No cross-validation results to display.</p>
+    <div class="alert alert-info text-center">
+        No cross-validation results to display.
+    </div>
     {% endif %}
 
-    <!-- Display Analysis Results -->
+    <!-- Display Dataset Analysis -->
     {% if dataset_analysis %}
-    <h2>Dataset Analysis</h2>
-    <table class="table table-bordered">
-        <thead>
-            <tr>
-                <th>Metric</th>
-                <th>Value</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td>Data Shape</td>
-                <td>{{ dataset_analysis.data_shape }}</td>
-            </tr>
-            <tr>
-                <td>Null Values</td>
-                <td>{{ dataset_analysis.null_values }}</td>
-            </tr>
-            <tr>
-                <td>Percentage of Non-Fraudulent Transactions</td>
-                <td>{{ dataset_analysis.percentage_non_fraudulent }}</td>
-            </tr>
-            <tr>
-                <td>Percentage of Fraudulent Transactions</td>
-                <td>{{ dataset_analysis.percentage_fraudulent }}</td>
-            </tr>
-            <tr>
-                <td>Total Fraudulent Transactions</td>
-                <td>{{ dataset_analysis.total_fraud_transactions }}</td>
-            </tr>
-            <tr>
-                <td>Total Normal Transactions</td>
-                <td>{{ dataset_analysis.total_normal_transactions }}</td>
-            </tr>
-        </tbody>
-    </table>
-    <a href="{% url 'export_anomalies_excel' dataset_id=dataset_id %}" class="btn btn-primary mt-3">
-        Download Anomalies as Excel
-    </a>
-    
+    <div class="card shadow mb-5">
+        <div class="card-body">
+            <h5 class="card-title">Dataset Analysis</h5>
+            <table class="table table-hover">
+                <thead class="thead-light">
+                    <tr>
+                        <th>Metric</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Data Shape</td>
+                        <td>{{ dataset_analysis.data_shape }}</td>
+                    </tr>
+                    <tr>
+                        <td>Null Values</td>
+                        <td>{{ dataset_analysis.null_values }}</td>
+                    </tr>
+                    <tr>
+                        <td>Percentage of Non-Fraudulent Transactions</td>
+                        <td>{{ dataset_analysis.percentage_non_fraudulent }}</td>
+                    </tr>
+                    <tr>
+                        <td>Percentage of Fraudulent Transactions</td>
+                        <td>{{ dataset_analysis.percentage_fraudulent }}</td>
+                    </tr>
+                    <tr>
+                        <td>Total Fraudulent Transactions</td>
+                        <td>{{ dataset_analysis.total_fraud_transactions }}</td>
+                    </tr>
+                    <tr>
+                        <td>Total Normal Transactions</td>
+                        <td>{{ dataset_analysis.total_normal_transactions }}</td>
+                    </tr>
+                </tbody>
+            </table>
+            <a href="{% url 'export_anomalies_excel' dataset_id=dataset_id %}" class="btn btn-primary mt-3">
+                Download Anomalies as Excel
+            </a>
+        </div>
+    </div>
     {% else %}
-    <p class="text-muted">No dataset analysis available.</p>
+    <div class="alert alert-info text-center">
+        No dataset analysis available.
+    </div>
     {% endif %}
 
     <!-- Scatter Plot and Pie Chart -->
     {% if scatter_url %}
-    <div>
-        <h2>Scatter Plot and Pie Chart</h2>
-        <img src="data:image/png;base64,{{ scatter_url }}" alt="Scatter Plot and Pie Chart" class="img-fluid">
+    <div class="card shadow mb-5">
+        <div class="card-body">
+            <h5 class="card-title">Scatter Plot and Pie Chart</h5>
+            <img src="data:image/png;base64,{{ scatter_url }}" alt="Scatter Plot and Pie Chart"
+                class="img-fluid rounded">
+        </div>
     </div>
     {% else %}
-    <p class="text-muted">No scatter plot or pie chart available.</p>
+    <div class="alert alert-info text-center">
+        No scatter plot or pie chart available.
+    </div>
     {% endif %}
 
-    <!-- Heatmap -->
-    {% if heatmap_url %}
-    <div>
-        <h2>Correlation Heatmap</h2>
-        <img src="data:image/png;base64,{{ heatmap_url }}" alt="Correlation Heatmap" class="img-fluid">
-    </div>
-    {% else %}
-    <p class="text-muted">No heatmap available.</p>
-    {% endif %}
+
+
 </div>
 {% endblock %}
