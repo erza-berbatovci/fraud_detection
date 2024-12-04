@@ -355,20 +355,21 @@ def fraud_detection_view(request, dataset_id=None):
     dataset = get_object_or_404(Dataset, id=dataset_id, uploaded_by=request.user)
 
     try:
-        # Ngarkimi i dataset-it
+        # Load dataset
         df = pd.read_csv(dataset.file.path)
         numeric_df = df.select_dtypes(include='number')
 
         if numeric_df.empty:
             raise ValueError("The dataset must contain numeric columns for analysis.")
 
-        # Krijimi i modelit Isolation Forest
+        # Create Isolation Forest model
         isolation_model = IsolationForest(n_estimators=100, contamination=0.01, random_state=42)
         isolation_model.fit(numeric_df)
         df['anomaly'] = isolation_model.predict(numeric_df)
 
-        # Ruaj dataset-in të përditësuar me anomalitë
+        # Save updated dataset with anomalies
         df.to_csv(dataset.file.path, index=False)
+
         # KFold Cross-Validation
         from sklearn.model_selection import KFold
         kf = KFold(n_splits=5, shuffle=True, random_state=42)
@@ -381,23 +382,21 @@ def fraud_detection_view(request, dataset_id=None):
             anomaly_ratio = (predictions == -1).sum() / len(predictions)
             scores.append(anomaly_ratio)
 
-        cross_val_scores = list(scores)  # Konverto në listë për template
+        cross_val_scores = list(scores)  # Convert to list for template
 
-        # Handle train-test split for visualization
-        # Handle train-test split for visualization
+        # Train-test split for visualization
         X_train, X_test = train_test_split(numeric_df, test_size=0.2, random_state=42)
         isolation_model.fit(X_train)
         X_test['anomaly'] = isolation_model.predict(X_test)
         anomalies = X_test[X_test['anomaly'] == -1]
         normal_data = X_test[X_test['anomaly'] != -1]
 
-# Save anomalies in session
+        # Save anomalies in session
         request.session[f"anomalies_{dataset_id}"] = anomalies.to_dict('records')
 
         fraud_count = len(anomalies)
         normal_count = len(normal_data)
         anomalies_count = fraud_count
-
 
         total_transactions = len(X_test)
         dataset_analysis = {
@@ -409,27 +408,48 @@ def fraud_detection_view(request, dataset_id=None):
             'total_normal_transactions': normal_count,
         }
 
-        # Scatter plot dhe pie chart
+        # Create visualizations
         feature_x = 'Time' if 'Time' in numeric_df.columns else numeric_df.columns[0]
         feature_y = 'Amount' if 'Amount' in numeric_df.columns else numeric_df.columns[1]
 
-        fig, axs = plt.subplots(1, 2, figsize=(12, 6))
-        axs[0].scatter(normal_data[feature_x], normal_data[feature_y], color='blue', label='Normal', alpha=0.6)
-        axs[0].scatter(anomalies[feature_x], anomalies[feature_y], color='red', label='Anomaly', alpha=0.6)
-        axs[0].set_xlabel(feature_x)
-        axs[0].set_ylabel(feature_y)
-        axs[0].legend()
+        fig, axs = plt.subplots(2, 2, figsize=(16, 12))
 
-        axs[1].pie(
+        # Scatter Plot
+        axs[0, 0].scatter(normal_data[feature_x], normal_data[feature_y], color='blue', label='Normal', alpha=0.6)
+        axs[0, 0].scatter(anomalies[feature_x], anomalies[feature_y], color='red', label='Anomaly', alpha=0.6)
+        axs[0, 0].set_xlabel(feature_x)
+        axs[0, 0].set_ylabel(feature_y)
+        axs[0, 0].set_title(f'Scatter Plot: {feature_y} vs {feature_x}')
+        axs[0, 0].legend()
+
+        # Pie Chart
+        axs[0, 1].pie(
             [normal_count, fraud_count],
             labels=['Normal', 'Fraudulent'],
             autopct='%1.1f%%',
             startangle=90,
             colors=['blue', 'red']
         )
+        axs[0, 1].set_title('Transaction Distribution')
+
+        # Box Plot
+        axs[1, 0].boxplot([normal_data[feature_y], anomalies[feature_y]], labels=['Normal', 'Anomalies'])
+        axs[1, 0].set_title('Box Plot of Transaction Amounts')
+        axs[1, 0].set_ylabel(feature_y)
+
+        # Histogram
+        axs[1, 1].hist(normal_data[feature_x], bins=50, color='blue', alpha=0.6, label='Normal')
+        axs[1, 1].hist(anomalies[feature_x], bins=50, color='red', alpha=0.6, label='Anomalies')
+        axs[1, 1].set_title(f'Histogram of {feature_x}')
+        axs[1, 1].set_xlabel(feature_x)
+        axs[1, 1].set_ylabel('Frequency')
+        axs[1, 1].legend()
+
+        # Save the combined plot as a Base64 string
         buffer = BytesIO()
         plt.tight_layout()
         plt.savefig(buffer, format='png')
+        buffer.seek(0)
         scatter_url = base64.b64encode(buffer.getvalue()).decode('utf-8')
         buffer.close()
         plt.close(fig)
@@ -439,13 +459,14 @@ def fraud_detection_view(request, dataset_id=None):
         return redirect('user_dashboard')
 
     return render(request, 'fraud_detection.html', {
-    'scatter_url': scatter_url,
-    'dataset_analysis': dataset_analysis,
-    'anomalies_count': anomalies_count,
-    'cross_val_scores': cross_val_scores,
-    'cross_val_mean': np.mean(cross_val_scores) if cross_val_scores else None,
-    'dataset_id': dataset_id,  # Kalimi i dataset_id në template
-})
+        'scatter_url': scatter_url,
+        'dataset_analysis': dataset_analysis,
+        'anomalies_count': anomalies_count,
+        'cross_val_scores': cross_val_scores,
+        'cross_val_mean': np.mean(cross_val_scores) if cross_val_scores else None,
+        'dataset_id': dataset_id,
+    })
+
 
 def about(request):
     return render(request, 'about.html')

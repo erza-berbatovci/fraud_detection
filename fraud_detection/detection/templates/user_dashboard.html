@@ -55,35 +55,6 @@
 
 
     <!-- Analysis Results Section -->
-    <div class="card mb-4">
-        <div class="card-header bg-success text-white">
-            <h4 class="mb-0">Analysis Results</h4>
-        </div>
-        <div class="card-body">
-            {% if analysis_results %}
-                <table class="table table-bordered">
-                    <thead>
-                        <tr>
-                            <th>Metric</th>
-                            <th>Value</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr><td>Data Shape</td><td>{{ analysis_results.data_shape }}</td></tr>
-                        <tr><td>Null Values</td><td>{{ analysis_results.null_values }}</td></tr>
-                        <tr><td>Unique Target Values</td><td>{{ analysis_results.unique_target_values }}</td></tr>
-                        <tr><td>Percentage Non-Fraudulent</td><td>{{ analysis_results.percentage_non_fraudulent }}</td></tr>
-                        <tr><td>Percentage Fraudulent</td><td>{{ analysis_results.percentage_fraudulent }}</td></tr>
-                        <tr><td>Total Fraudulent Transactions</td><td>{{ analysis_results.total_fraud_transactions }}</td></tr>
-                        <tr><td>Total Normal Transactions</td><td>{{ analysis_results.total_normal_transactions }}</td></tr>
-                    </tbody>
-                </table>
-                <h4>Scatter Plot</h4>
-                <img src="data:image/png;base64,{{ scatter_url }}" class="img-fluid" alt="Scatter Plot">
-            {% else %}
-                <p>No analysis results available. Please select a dataset to analyze.</p>
-            {% endif %}
-        </div>
-    </div>
+   
 </div>
 {% endblock %}

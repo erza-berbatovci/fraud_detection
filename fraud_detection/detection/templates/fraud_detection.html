@@ -1,26 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container mt-5">
-    <div class="text-center mb-4">
-        <h1 class="display-4 text-primary">Fraud Detection</h1>
-        <p class="lead">Upload your dataset for anomaly detection and analysis.</p>
-    </div>
 
-    <!-- Upload Form -->
-    <div class="card shadow mb-5">
-        <div class="card-body">
-            <h5 class="card-title">Upload Dataset</h5>
-            <form method="post" enctype="multipart/form-data">
-                {% csrf_token %}
-                <div class="form-group">
-                    <label for="file" class="font-weight-bold">Upload Dataset (CSV):</label>
-                    <input type="file" name="file" class="form-control-file" required>
-                </div>
-                <button type="submit" class="btn btn-success btn-block">Analyze</button>
-            </form>
-        </div>
-    </div>
 
     <!-- Display Cross-Validation Results -->
     {% if cross_val_scores %}
