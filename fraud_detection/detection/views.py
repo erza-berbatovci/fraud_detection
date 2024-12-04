@@ -364,7 +364,11 @@ def fraud_detection_view(request, dataset_id=None):
 
         # Krijimi i modelit Isolation Forest
         isolation_model = IsolationForest(n_estimators=100, contamination=0.01, random_state=42)
+        isolation_model.fit(numeric_df)
+        df['anomaly'] = isolation_model.predict(numeric_df)
 
+        # Ruaj dataset-in të përditësuar me anomalitë
+        df.to_csv(dataset.file.path, index=False)
         # KFold Cross-Validation
         from sklearn.model_selection import KFold
         kf = KFold(n_splits=5, shuffle=True, random_state=42)
@@ -380,15 +384,20 @@ def fraud_detection_view(request, dataset_id=None):
         cross_val_scores = list(scores)  # Konverto në listë për template
 
         # Handle train-test split for visualization
+        # Handle train-test split for visualization
         X_train, X_test = train_test_split(numeric_df, test_size=0.2, random_state=42)
         isolation_model.fit(X_train)
         X_test['anomaly'] = isolation_model.predict(X_test)
         anomalies = X_test[X_test['anomaly'] == -1]
         normal_data = X_test[X_test['anomaly'] != -1]
 
+# Save anomalies in session
+        request.session[f"anomalies_{dataset_id}"] = anomalies.to_dict('records')
+
         fraud_count = len(anomalies)
         normal_count = len(normal_data)
         anomalies_count = fraud_count
+
 
         total_transactions = len(X_test)
         dataset_analysis = {
@@ -440,36 +449,19 @@ def fraud_detection_view(request, dataset_id=None):
 
 def about(request):
     return render(request, 'about.html')
-
 def export_anomalies_excel(request, dataset_id):
-    """Export anomalies as an Excel file."""
-    dataset = get_object_or_404(Dataset, id=dataset_id)
+    anomalies_data = request.session.get(f"anomalies_{dataset_id}")
+    if not anomalies_data:
+        return HttpResponse("No anomalies data found for export.", content_type="text/plain")
 
-    try:
-        # Load the dataset
-        df = pd.read_csv(dataset.file.path)
+    anomalies = pd.DataFrame(anomalies_data)
 
-        # Shto kolonën 'anomaly' nëse mungon
-        if 'anomaly' not in df.columns:
-            isolation_model = IsolationForest(n_estimators=100, contamination=0.01, random_state=42)
-            isolation_model.fit(df.select_dtypes(include='number'))
-            df['anomaly'] = isolation_model.predict(df.select_dtypes(include='number'))
-            df.to_csv(dataset.file.path, index=False)  # Ruaj dataset-in të përditësuar
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="anomalies_{dataset_id}.xlsx"'
 
-        # Filtroni anomalitë
-        anomalies = df[df['anomaly'] == -1]
+    with pd.ExcelWriter(response, engine='openpyxl') as writer:
+        anomalies.to_excel(writer, index=False, sheet_name='Anomalies')
 
-        # Kontrolloni nëse ka të dhëna anomalie
-        if anomalies.empty:
-            return HttpResponse("Nuk ka të dhëna anomalie për eksportim.", content_type="text/plain")
-
-        # Krijoni një Excel file për eksport
-        response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-        response['Content-Disposition'] = f'attachment; filename="anomalies_{dataset.name}.xlsx"'
-
-        with pd.ExcelWriter(response, engine='openpyxl') as writer:
-            anomalies.to_excel(writer, index=False, sheet_name='Anomalies')
-
-        return response
-    except Exception as e:
-        return HttpResponse(f"Gabim gjatë eksportimit të anomalive: {e}", content_type="text/plain")
+    return response
