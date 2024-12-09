@@ -1,15 +1,14 @@
 {% extends 'base.html' %}
 
 {% block content %}
-
-
+<div class="container mt-4" style="background-color: #DDE6ED; font-family: Arial, sans-serif; color: #27374D;">
     <!-- Display Cross-Validation Results -->
     {% if cross_val_scores %}
-    <div class="card shadow mb-5">
+    <div class="card shadow mb-5" style="border: none; background-color: #9DB2BF;">
         <div class="card-body">
-            <h5 class="card-title">Cross-Validation Results</h5>
-            <table class="table table-hover">
-                <thead class="thead-light">
+            <h5 class="card-title" style="color: #27374D;">Cross-Validation Results</h5>
+            <table class="table table-hover" style="background-color: #DDE6ED; color: #27374D;">
+                <thead class="thead-light" style="background-color: #526D82; color: #DDE6ED;">
                     <tr>
                         <th>Fold</th>
                         <th>Score</th>
@@ -22,7 +21,7 @@
                         <td>{{ score|floatformat:3 }}</td>
                     </tr>
                     {% endfor %}
-                    <tr class="table-success">
+                    <tr style="background-color: #526D82 !important; color: #DDE6ED !important;">
                         <td><strong>Average Score</strong></td>
                         <td><strong>{{ cross_val_mean|floatformat:3 }}</strong></td>
                     </tr>
@@ -31,18 +30,18 @@
         </div>
     </div>
     {% else %}
-    <div class="alert alert-info text-center">
+    <div class="alert alert-info text-center" style="background-color: #9DB2BF; color: #27374D;">
         No cross-validation results to display.
     </div>
     {% endif %}
 
     <!-- Display Dataset Analysis -->
     {% if dataset_analysis %}
-    <div class="card shadow mb-5">
+    <div class="card shadow mb-5" style="border: none; background-color: #9DB2BF;">
         <div class="card-body">
-            <h5 class="card-title">Dataset Analysis</h5>
-            <table class="table table-hover">
-                <thead class="thead-light">
+            <h5 class="card-title" style="color: #27374D;">Dataset Analysis</h5>
+            <table class="table table-hover" style="background-color: #DDE6ED; color: #27374D;">
+                <thead class="thead-light" style="background-color: #526D82; color: #DDE6ED;">
                     <tr>
                         <th>Metric</th>
                         <th>Value</th>
@@ -75,33 +74,31 @@
                     </tr>
                 </tbody>
             </table>
-            <a href="{% url 'export_anomalies_excel' dataset_id=dataset_id %}" class="btn btn-primary mt-3">
+            <a href="{% url 'export_anomalies_excel' dataset_id=dataset_id %}" class="btn" 
+               style="background-color: #27374D; color: #DDE6ED; border: none; margin-top: 15px;">
                 Download Anomalies as Excel
             </a>
         </div>
     </div>
     {% else %}
-    <div class="alert alert-info text-center">
+    <div class="alert alert-info text-center" style="background-color: #9DB2BF; color: #27374D;">
         No dataset analysis available.
     </div>
     {% endif %}
 
     <!-- Scatter Plot and Pie Chart -->
     {% if scatter_url %}
-    <div class="card shadow mb-5">
+    <div class="card shadow mb-5" style="border: none; background-color: #9DB2BF;">
         <div class="card-body">
-            <h5 class="card-title">Scatter Plot and Pie Chart</h5>
+            <h5 class="card-title" style="color: #27374D;">Scatter Plot and Pie Chart</h5>
             <img src="data:image/png;base64,{{ scatter_url }}" alt="Scatter Plot and Pie Chart"
-                class="img-fluid rounded">
+                class="img-fluid rounded" style="border: 2px solid #526D82;">
         </div>
     </div>
     {% else %}
-    <div class="alert alert-info text-center">
+    <div class="alert alert-info text-center" style="background-color: #9DB2BF; color: #27374D;">
         No scatter plot or pie chart available.
     </div>
     {% endif %}
-
-
-
 </div>
 {% endblock %}

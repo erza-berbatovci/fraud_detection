@@ -1,12 +1,16 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="container text-center mt-5">
-    <h1>Welcome to the Fraud Detection System</h1>
-    <p>Please log in to access your dashboard or register if you don't have an account.</p>
+<div class="container text-center mt-5" style="background-color: #DDE6ED; padding: 30px; border-radius: 10px; color: #27374D;">
+    <h1 style="color: #27374D;">Welcome to the Fraud Detection System</h1>
+    <p style="color: #526D82;">Please log in to access your dashboard or register if you don't have an account.</p>
     <div class="mt-4">
-        <a href="{% url 'login' %}" class="btn btn-primary">Login</a>
-        <a href="{% url 'register' %}" class="btn btn-secondary">Register</a>
+        <a href="{% url 'login' %}" class="btn" style="background-color: #27374D; color: #DDE6ED; border: none; margin-right: 10px;">
+            Login
+        </a>
+        <a href="{% url 'register' %}" class="btn" style="background-color: #9DB2BF; color: #27374D; border: none;">
+            Register
+        </a>
     </div>
 </div>
 {% endblock %}

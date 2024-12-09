@@ -357,6 +357,7 @@ def fraud_detection_view(request, dataset_id=None):
     try:
         # Load dataset
         df = pd.read_csv(dataset.file.path)
+        original_shape = df.shape
         numeric_df = df.select_dtypes(include='number')
 
         if numeric_df.empty:
@@ -398,10 +399,12 @@ def fraud_detection_view(request, dataset_id=None):
         normal_count = len(normal_data)
         anomalies_count = fraud_count
 
-        total_transactions = len(X_test)
+        total_transactions = len(df)
+        fraud_count = len(df[df['anomaly'] == -1])
+        normal_count = len(df[df['anomaly'] != -1])
         dataset_analysis = {
-            'data_shape': X_test.shape,
-            'null_values': X_test.isnull().sum().to_dict(),
+            'data_shape': original_shape,
+            'null_values': df.isnull().sum().to_dict(),
             'percentage_non_fraudulent': f"{(normal_count / total_transactions) * 100:.3f}%",
             'percentage_fraudulent': f"{(fraud_count / total_transactions) * 100:.3f}%",
             'total_fraud_transactions': fraud_count,

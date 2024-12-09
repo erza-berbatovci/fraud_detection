@@ -1,63 +1,58 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="container mt-5">
+<div class="container mt-5" style="background-color: #ffffff; font-family: Arial, sans-serif; color: #27374D;">
     <!-- Dashboard Header -->
     <div class="text-center mb-4">
-        <h1 class="display-4">User Dashboard</h1>
-        <p class="lead">Upload datasets and perform fraud analysis with ease.</p>
+        <h1 style="color: #27374D;">User Dashboard</h1>
+        <p style="color: #526D82;">Upload datasets and perform fraud analysis with ease.</p>
     </div>
 
     <!-- Upload Dataset Section -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-success text-white">
-            <h4 class="mb-0">Upload Dataset</h4>
+    <div class="card shadow-sm mb-4" style="border: none; background-color: #DDE6ED;">
+        <div class="card-header" style="background-color: #526D82; color: #DDE6ED;">
+            <h4>Upload Dataset</h4>
         </div>
         <div class="card-body">
             <form method="post" enctype="multipart/form-data">
                 {% csrf_token %}
                 <div class="form-group">
-                    <label for="file" class="font-weight-bold">Choose your dataset (CSV format):</label>
+                    <label for="file">Choose your dataset (CSV format):</label>
                     <input type="file" name="file" class="form-control-file mt-2" required>
                 </div>
-                <div class="text-right">
-                    <button type="submit" class="btn btn-primary btn-lg">Upload</button>
-                </div>
+                <button type="submit" class="btn btn-primary" style="background-color: #27374D; border: none;">Upload</button>
             </form>
         </div>
     </div>
 
     <!-- Your Datasets Section -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header bg-primary text-white">
-            <h4 class="mb-0">Your Datasets</h4>
+    <div class="card shadow-sm mb-4" style="border: none; background-color: #DDE6ED;">
+        <div class="card-header" style="background-color: #526D82; color: #DDE6ED;">
+            <h4>Your Datasets</h4>
         </div>
         <div class="card-body">
             {% if datasets %}
                 <ul class="list-group">
                     {% for dataset in datasets %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <strong>{{ dataset.name }}</strong><br>
-                                <small class="text-muted">Uploaded on {{ dataset.uploaded_at|date:"M d, Y, h:i a" }}</small>
-                            </div>
-                            <div>
-                                <!-- Analyze Dataset Button -->
-                                <a href="{% url 'fraud_detection' dataset_id=dataset.id %}" class="btn btn-info btn-sm mr-2">
-                                    Analyze
-                                </a>
-
-                                <!-- Delete Dataset Button -->
-                                <form method="post" action="{% url 'delete_dataset' dataset.id %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button type="submit" class="btn btn-danger btn-sm">Delete</button>
-                                </form>
+                        <li class="list-group-item" style="background-color: #DDE6ED; color: #27374D;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ dataset.name }}</strong><br>
+                                    <small>Uploaded on {{ dataset.uploaded_at|date:"M d, Y, h:i a" }}</small>
+                                </div>
+                                <div>
+                                    <a href="{% url 'fraud_detection' dataset_id=dataset.id %}" class="btn btn-sm" style="background-color: #526D82; color: #DDE6ED; border: none;">Analyze</a>
+                                    <form method="post" action="{% url 'delete_dataset' dataset.id %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm" style="background-color: #27374D; color: #DDE6ED; border: none;">Delete</button>
+                                    </form>
+                                </div>
                             </div>
                         </li>
                     {% endfor %}
                 </ul>
             {% else %}
-                <p class="text-muted text-center mb-0">No datasets available. Upload a dataset to get started.</p>
+                <p class="text-muted text-center">No datasets available. Upload a dataset to get started.</p>
             {% endif %}
         </div>
     </div>
