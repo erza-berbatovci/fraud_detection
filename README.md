@@ -1,3 +1,23 @@
+# Fraud Detection in Financial Transactions using AI/ML Algorithms
+
+This application is developed as part of a thesis project to detect fraud attempts in financial transactions using advanced AI/ML algorithms. It leverages anomaly detection techniques to identify irregularities in transaction datasets, providing valuable insights and tools for fraud prevention.
+
+## Features
+
+- **User Authentication**: Secure login and registration system with role-based access (Admin and User).  
+- **Dataset Upload**: Users can upload CSV files containing financial transaction data for analysis.  
+- **Anomaly Detection**: Implements the Isolation Forest algorithm to detect suspicious transactions.  
+- **Result Visualization**: Provides graphical representations of identified anomalies, including scatter plots, pie charts, histograms, and box plots.  
+- **Admin Dashboard**: Allows administrators to monitor user activities, analyze datasets, and manage uploaded files.  
+- **Export Functionality**: Enables downloading of identified anomalies as an Excel report for further processing.  
+
+## Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-repo-url.git
+   cd your-repo-folder
+
 ## Application Architecture
 
 The application is built using Django, a high-level Python web framework, and leverages several Machine Learning libraries for data analysis and visualization. The architecture consists of the following key components:
